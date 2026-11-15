@@ -264,6 +264,8 @@ function cardAnuncio(a, exemplo = false) {
   const acomp = ia?.acompanha?.length ? `<div class="mini">📦 Acompanha: ${ia.acompanha.map(esc).join(", ")}</div>` : "";
   const checklist = ck.length ? `<details><summary>✅ Checklist na hora (${ck.length})</summary><ul>${ck.map(p => `<li>${esc(p)}</li>`).join("")}</ul></details>` : "";
   const refTxt = !a.ref ? "sem referência ainda" : a.fonte_revenda === "web" ? `revenda ~${brl(a.ref)} (preço típico de usado na web)`
+    : a.fonte_revenda === "pagina" ? `revenda ~${brl(a.ref)} (mediana de ${a.n_ref} anúncios parecidos desta busca)`
+    : a.fonte_revenda === "busca" ? `revenda ~${brl(a.ref)} (mediana de ${a.n_ref} anúncios desta busca)`
     : `mercado ${brl(a.ref)} · ${a.n_ref} anúncios${a.ref_tipo === "modelo" && a.variante ? " (todas as versões)" : ""}`;
   const refFaixa = prod?.variantes?.[a.variante] && a.ref_tipo === "variante" ? prod.variantes[a.variante] : prod?.ref;
   const vendidoInfo = a.situacao === "vendido" ? `<div class="mini">Sumiu ${a.horas_ate_sumir != null ? `em ~${Math.round(a.horas_ate_sumir)} h após publicado` : ""} (${dataBr(a.vendido_em)})</div>` : "";
@@ -403,38 +405,85 @@ function zonaOlx(cidade, bairro) {
   if (c !== "rio de janeiro") return null;
   return AO.bairros[normalizar(bairro)] || "Rio (bairro não mapeado)";
 }
+// Palavras que não ajudam a dizer "que produto é" (comparação entre anúncios da mesma página).
+const STOP = new Set("de da do das dos e em com sem para pra por o a os as um uma no na nos nas novo nova novos usado usada seminovo semi vendo venda vende otimo otima estado bom boa barato barata promocao urgente oportunidade lindo linda perfeito perfeita conservado conservada completo completa original zap whatsapp troco aceito cartao pix entrego rj rio".split(" "));
+const tokens = t => new Set(normalizar(t).replace(/[^a-z0-9 ]/g, " ").split(" ").filter(w => w.length >= 2 && !STOP.has(w)));
+function jaccard(a, b) { let i = 0; for (const x of a) if (b.has(x)) i++; return i / (a.size + b.size - i || 1); }
+function mediana(v) { const o = [...v].sort((a, b) => a - b); const m = o.length >> 1; return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2; }
+function semExtremos(v) { if (v.length < 3) return v; const m = mediana(v); return v.filter(x => x >= 0.5 * m && x <= 1.8 * m); }
+function motivoNegocio(t) {
+  for (const re of EXC_NEG) {
+    re.lastIndex = 0; let r;
+    while ((r = re.exec(t))) {
+      if (!(NEGACAO && NEGACAO.test(t.slice(Math.max(0, r.index - 30), r.index)))) return `termo excluído: "${r[0]}"`;
+      if (r[0] === "") re.lastIndex++;
+    }
+  }
+  return null;
+}
+const MIN_PARECIDOS = 4;
+
 function analisarImportado(imp) {
   const R = DADOS.regras;
-  return imp.a.map(x => {
+  let termo = "";
+  try { termo = new URL(imp.q).searchParams.get("q") || ""; } catch (e) {}
+  const tokTermo = tokens(termo);
+  const base = imp.a.map(x => {
     let cidade = x.c, bairro = x.b;
     if (!cidade && x.l) { const partes = x.l.split(/[,\-]/).map(p => p.trim()).filter(Boolean); cidade = partes[0]; if (partes[1] && !/^ddd/i.test(partes[1])) bairro = partes[1]; }
     const preco = precoNum(x.p);
     const cl = classificarOlx(x.t, preco);
+    return {x, cidade, bairro, preco, cl, tok: tokens(x.t), neg: motivoNegocio(normalizar(x.t))};
+  });
+  // Anúncios que servem de comparação: com preço, sem termo de exclusão, de pessoa física.
+  const comparaveis = base.filter(b => b.preco && !b.neg && !b.x.pr);
+  // O anúncio precisa ter (quase) todas as palavras da busca: "lente canon" não conta como "canon 7d".
+  const casaTermo = b => tokTermo.size > 0 && [...tokTermo].filter(w => b.tok.has(w)).length >= (tokTermo.size <= 3 ? tokTermo.size : Math.ceil(tokTermo.size * 0.75));
+  const daBusca = comparaveis.filter(casaTermo);
+
+  return base.map(b => {
+    const {x, cidade, bairro, preco, cl} = b;
     const zona = zonaOlx(cidade, bairro);
     const municipioOk = AO.municipios.map(normalizar).includes(normalizar(cidade));
     const regiaoOk = municipioOk && (zona === "Rio (bairro não mapeado)" ? AO.aceitar_bairro_desconhecido : (!zona || AO.zonas.includes(zona) || zona === cidade));
-    const rev = cl.item ? AO.revenda[cl.item.id] : null;
+
+    // 1) Produto do catálogo com preço de revenda conhecido; 2) parecidos nesta página; 3) a busca inteira.
+    let ref = null, nRef = 0, fonte = null;
+    const doCatalogo = cl.item && !cl.motivo ? AO.revenda[cl.item.id] : null;
+    if (doCatalogo) { ref = doCatalogo.mediana; nRef = doCatalogo.n; fonte = doCatalogo.fonte; }
+    else {
+      const parecidos = comparaveis.filter(o => o !== b && jaccard(b.tok, o.tok) >= 0.35).map(o => o.preco);
+      const lp = semExtremos(parecidos);
+      if (lp.length >= MIN_PARECIDOS) { ref = mediana(lp); nRef = lp.length; fonte = "pagina"; }
+      else if (casaTermo(b)) {
+        const lb = semExtremos(daBusca.filter(o => o !== b).map(o => o.preco));
+        if (lb.length >= 6) { ref = mediana(lb); nRef = lb.length; fonte = "busca"; }
+      }
+    }
     let lucro = null, margem = null;
-    if (rev && preco) {
-      const venda = rev.mediana * (1 - R.desconto_negociacao_pct / 100);
+    if (ref && preco) {
+      const venda = ref * (1 - R.desconto_negociacao_pct / 100);
       lucro = venda - preco - R.custo_fixo_reais - venda * (R.taxa_venda_pct || 0) / 100;
       margem = lucro / preco * 100;
     }
+    const suspeito = !!(ref && preco && preco < ref * 0.45);
     let situacao = "normal", motivo = null;
-    if (!cl.item || cl.motivo) { situacao = "descartado"; motivo = cl.motivo; }
+    const motivoCatalogo = cl.item ? cl.motivo : null;  // fora do catálogo não é motivo de descarte
+    if (!preco) { situacao = "descartado"; motivo = "sem preço"; }
+    else if (b.neg || motivoCatalogo) { situacao = "descartado"; motivo = b.neg || motivoCatalogo; }
     else if (!regiaoOk) { situacao = "descartado"; motivo = `fora das regiões aceitas (${cidade || "?"} / ${bairro || "?"})`; }
-    else if (!rev) { situacao = "observacao"; motivo = "ainda sem preço de revenda para este produto"; }
+    else if (!ref) { situacao = "normal"; motivo = "sem anúncios parecidos para comparar (faça uma busca específica por este produto)"; }
     else if (x.pr) { situacao = "normal"; motivo = "anúncio de loja"; }
     else if (preco > R.orcamento_max) { situacao = "normal"; motivo = "acima do orçamento"; }
+    else if (suspeito) { situacao = "observacao"; motivo = "preço muito abaixo dos parecidos: pode ser peça, acessório, defeito ou golpe"; }
     else if (margem >= R.margem_min_pct && lucro >= R.lucro_min_reais) situacao = "oportunidade";
     else if (margem >= R.margem_min_pct / 2 && lucro > 0) { situacao = "observacao"; motivo = `margem de ${Math.round(margem)}%: perto do alvo, vale negociar`; }
     const quando = x.d ? new Date(/^\d+$/.test(String(x.d)) ? Number(x.d) * (Number(x.d) > 1e12 ? 1 : 1000) : x.d).toISOString() : null;
     return {
-      id: "olx-" + (x.id || x.u), titulo: x.t, url: x.u, preco, preco_inicial: null, ref: rev?.mediana ?? null,
-      n_ref: rev?.n ?? 0, ref_tipo: "modelo", lucro, margem, suspeito: !!(rev && preco && preco < rev.mediana * 0.45),
-      situacao, motivo, item_id: cl.item?.id, item_nome: cl.item?.nome || "—", categoria: cl.item?.categoria,
-      variante: cl.variante, bairro, cidade, zona, imagens: x.i ? [x.i] : [], publicado_em: quando, primeiro_visto: quando,
-      lojista: x.pr, analise: null, fonte_revenda: rev?.fonte,
+      id: "olx-" + (x.id || x.u), titulo: x.t, url: x.u, preco, preco_inicial: null, ref, n_ref: nRef, ref_tipo: "modelo",
+      lucro, margem, suspeito, situacao, motivo, item_id: cl.item?.id, item_nome: cl.item?.nome || (termo ? `busca "${termo}"` : "anúncio da OLX"),
+      categoria: cl.item?.categoria, variante: cl.variante, bairro, cidade, zona, imagens: x.i ? [x.i] : [],
+      publicado_em: quando, primeiro_visto: quando, lojista: x.pr, analise: null, fonte_revenda: fonte,
     };
   });
 }
@@ -447,6 +496,14 @@ function analisarImportado(imp) {
     let b = h.slice(5).replace(/-/g, "+").replace(/_/g, "/");
     while (b.length % 4) b += "=";
     const imp = JSON.parse(decodeURIComponent(escape(atob(b))));
+    // Mesma busca (outra página: parâmetro o=2, 3...) => junta os anúncios para comparar mais.
+    const chaveBusca = u => { try { const x = new URL(u); x.searchParams.delete("o"); x.searchParams.sort(); return x.toString(); } catch (e) { return u; } };
+    const ant = estado.importOlx;
+    if (ant && chaveBusca(ant.q) === chaveBusca(imp.q)) {
+      const ids = new Set(ant.a.map(a => a.id || a.u));
+      imp.a = [...ant.a, ...imp.a.filter(a => !ids.has(a.id || a.u))].slice(0, 400);
+      imp.paginas = (ant.paginas || 1) + 1;
+    }
     estado.importOlx = imp; salvar();
   } catch (e) { alert("Não consegui ler os anúncios trazidos da OLX: " + e.message); }
   history.replaceState(null, "", location.pathname + "#olx");
@@ -466,13 +523,13 @@ function blocoInstalarFavorito() {
 }
 
 function renderAnaliseOlx() {
-  let html = `<p class="muted">Anúncios que você trouxe da OLX com o favorito, com a mesma conta de lucro das oportunidades (revenda pelo preço de mercado do produto, menos ${DADOS.regras.desconto_negociacao_pct}% de negociação e ${brl(DADOS.regras.custo_fixo_reais)} de custos).</p>`;
+  let html = `<p class="muted">Qualquer produto da OLX: cada anúncio é comparado com os <b>anúncios parecidos da mesma busca</b> (mediana de preço). Produtos do catálogo usam o preço de mercado do robô. Lucro = revenda − ${DADOS.regras.desconto_negociacao_pct}% de negociação − ${brl(DADOS.regras.custo_fixo_reais)} de custos. Funciona melhor com buscas específicas ("canon 7d", "air fryer philips", "bicicleta caloi aro 29").</p>`;
   if (!IMPORTADOS.length) return html + blocoInstalarFavorito() + blocoBuscasOlx();
   const imp = estado.importOlx;
   const grupos = {oportunidade: [], observacao: [], normal: [], descartado: []};
   for (const a of IMPORTADOS) (grupos[a.situacao] || grupos.normal).push(a);
   const ord = l => l.sort((x, y) => (y.margem ?? -999) - (x.margem ?? -999));
-  html += `<div class="filtros"><span class="muted" style="flex:1">${IMPORTADOS.length} anúncios trazidos ${ha(new Date(imp.em).toISOString())} de <a href="${urlSegura(imp.q)}" target="_blank" rel="noopener">esta busca</a>.</span>
+  html += `<div class="filtros"><span class="muted" style="flex:1">${IMPORTADOS.length} anúncios trazidos ${ha(new Date(imp.em).toISOString())} de <a href="${urlSegura(imp.q)}" target="_blank" rel="noopener">esta busca</a>${imp.paginas > 1 ? ` (${imp.paginas} páginas juntas)` : ""}. Para comparar com mais anúncios, vá para a próxima página da mesma busca na OLX e clique no favorito de novo.</span>
     <button class="btn" data-limpar-olx>🧹 Limpar</button></div>`;
   html += `<h2>🔥 Dão lucro (${grupos.oportunidade.length})</h2>` + (grupos.oportunidade.length ? `<div class="grade">${ord(grupos.oportunidade).map(a => cardAnuncio(a)).join("")}</div>` : `<div class="vazio">Nenhum anúncio desta página passa de ${DADOS.regras.margem_min_pct}% de margem.</div>`);
   if (grupos.observacao.length) html += `<h2>👀 Quase lá (${grupos.observacao.length})</h2><div class="grade">${ord(grupos.observacao).map(a => cardAnuncio(a)).join("")}</div>`;
