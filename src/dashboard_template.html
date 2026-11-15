@@ -438,7 +438,13 @@ function aplicarFiltros(lista) {
 // O favorito roda na página da OLX que VOCÊ abriu, lê os anúncios já carregados na tela e
 // abre este painel com eles no endereço (#olx=...). Nada é enviado a servidor nenhum.
 const FAVORITO_FONTE = String.raw`(()=>{try{
-if(!/(^|\.)olx\.com\.br$/.test(location.hostname)){alert('Abra uma busca da OLX primeiro e clique no favorito nela.');return}
+const enc=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const abrir=u=>{const w=window.open(u,'_blank');if(!w)location.href=u};
+if(!/(^|\.)olx\.com\.br$/.test(location.hostname)){
+const meta=n=>{const m=document.querySelector('meta[property="'+n+'"],meta[name="'+n+'"]');return m?m.content:''};
+const txt=(document.body.innerText||'').replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').slice(0,15000);
+if(txt.length<200){alert('Esta página ainda não carregou o lote. Espere carregar e clique de novo.');return}
+abrir('__PAINEL__#lote='+enc({v:1,u:location.href,h:location.hostname,t:document.title,ot:meta('og:title'),oi:meta('og:image'),x:txt}));return}
 let L=[];
 const el=document.getElementById('__NEXT_DATA__');
 if(el){try{const d=JSON.parse(el.textContent);let best=[];const st=[d];
@@ -457,13 +463,11 @@ let isrc='';for(const im of card.querySelectorAll('img')){const cs=[im.currentSr
 if(!isrc){const so=card.querySelector('source[srcset]');if(so)isrc=(so.getAttribute('srcset')||'').split(' ')[0]}
 const pp=loc.split(',');L.push({t:tit,p:pm[0],u:u.origin+u.pathname,id:m[1],c:(pp[0]||'').trim(),b:(pp[1]||'').trim(),l:'',i:/^https?:/.test(isrc)?isrc:'',d:'',pr:/profissional|loja/i.test(txt)});if(L.length>=100)break}}
 if(!L.length){alert('Não encontrei anúncios nesta página. Abra uma página de RESULTADOS de busca da OLX (ex.: pesquise "iphone 13" ou use os botões do painel), espere carregar e clique de novo.');return}
-const j=JSON.stringify({v:1,q:location.href,em:Date.now(),a:L});
-const b=btoa(unescape(encodeURIComponent(j))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-const u='__PAINEL__#olx='+b;const w=window.open(u,'_blank');if(!w)location.href=u;
+abrir('__PAINEL__#olx='+enc({v:1,q:location.href,em:Date.now(),a:L}));
 }catch(e){alert('Erro ao ler a página: '+e.message)}})();`;
 function linkFavorito() {
   const painel = location.href.split("#")[0];
-  const codigo = FAVORITO_FONTE.replace("__PAINEL__", painel).replace(/\n/g, "");
+  const codigo = FAVORITO_FONTE.replaceAll("__PAINEL__", painel).replace(/\n/g, "");
   return "javascript:" + encodeURIComponent(codigo);
 }
 
@@ -593,6 +597,52 @@ function analisarImportado(imp) {
   });
 }
 
+// ---------------------------------------------------------------- lote lido pelo favorito (#lote=...)
+function decodificarHash(b) {
+  b = b.replace(/-/g, "+").replace(/_/g, "/"); while (b.length % 4) b += "=";
+  return JSON.parse(decodeURIComponent(escape(atob(b))));
+}
+const numBR = t => { if (!t) return null; let v = String(t).replace(/[^\d,.]/g, ""); if (v.includes(",")) v = v.replace(/\./g, "").replace(",", "."); else v = v.replace(/\./g, ""); const n = parseFloat(v); return isFinite(n) && n > 0 ? n : null; };
+function extrairLote(p) {
+  const x = p.x || "", lx = x.toLowerCase(), achados = [];
+  const pega = (rot, re, f = v => v) => { const m = x.match(re); if (m) { achados.push(`${rot}: “${m[0].replace(/\s+/g, " ").trim().slice(0, 80)}”`); return f(m); } return null; };
+  const anos = pega("ano", /ano(?:\s*(?:de\s*)?(?:fabrica[çc][ãa]o|fab\.?|modelo|fab\/mod\.?))?\s*[:\-]?\s*((?:19|20)\d{2})(?:\s*\/\s*((?:19|20)\d{2}))?/i, m => Number(m[2] || m[1]))
+    ?? pega("ano", /\b((?:19|20)\d{2})\s*\/\s*((?:19|20)\d{2})\b/, m => Number(m[2]));
+  const km = pega("km", /(?:quilometragem|km)\s*[:\-]?\s*(\d{1,3}(?:\.\d{3})+|\d{3,7})\b/i, m => numBR(m[1])) ?? pega("km", /\b(\d{1,3}(?:\.\d{3})+|\d{4,7})\s*km\b/i, m => numBR(m[1]));
+  const lance = pega("lance", /lance\s*(?:atual|inicial|m[íi]nimo|vencedor)?\s*[:\-]?\s*R\$\s*([\d.]+(?:,\d{2})?)/i, m => numBR(m[1]))
+    ?? pega("lance", /(?:valor\s*(?:atual|inicial|m[íi]nimo)|oferta\s*atual)\s*[:\-]?\s*R\$\s*([\d.]+(?:,\d{2})?)/i, m => numBR(m[1]));
+  const fipe = pega("FIPE", /fipe[^R\n]{0,40}R\$\s*([\d.]+(?:,\d{2})?)/i, m => numBR(m[1]));
+  let tipo = "outro";
+  if (/recuperad[oa]s?\s*(?:de\s*)?financ/i.test(lx) || /financeira|retomad/i.test(lx)) tipo = "recuperado_financiamento";
+  if (/pequena\s*monta/i.test(lx)) tipo = "sinistro_pequena_monta";
+  if (/m[ée]dia\s*monta/i.test(lx)) tipo = "sinistro_media_monta";
+  if (/grande\s*monta/i.test(lx)) tipo = "sinistro_grande_monta";
+  if (/\bsucata\b|baixa\s*permanente|irrecuper[áa]vel/i.test(lx)) tipo = "sucata";
+  if (tipo !== "outro") achados.push(`tipo: ${TIPO_LOTE[tipo]}`);
+  const local = pega("local", /(?:p[áa]tio|local(?:iza[çc][ãa]o)?(?:\s*do\s*(?:ve[íi]culo|lote))?|cidade)\s*[:\-]\s*([^\n]{3,60})/i, m => m[1].trim())
+    ?? pega("local", /\b([A-ZÀ-Ú][A-Za-zÀ-ú .']{2,40})\s*[\/\-]\s*(RJ|SP|MG|ES)\b/, m => `${m[1].trim()}/${m[2]}`);
+  const data = pega("data", /(?:leil[ãa]o|encerra(?:mento)?|data)[^\d\n]{0,30}(\d{2})\/(\d{2})\/(\d{4})/i, m => `${m[3]}-${m[2]}-${m[1]}`);
+  const nome = ((p.ot || p.t || "").split(/\s[|\-–—]\s/)[0] || "").trim();
+  const alertas = [];
+  if (/sem\s*chave/i.test(lx)) alertas.push("Sem chave");
+  if (/n[ãa]o\s*(?:liga|funciona|d[áa]\s*partida)/i.test(lx)) alertas.push("Não liga / não funciona: risco de motor");
+  if (/d[ée]bitos?\s*(?:por\s*conta|de\s*responsabilidade)\s*do\s*arrematante/i.test(lx)) alertas.push("Débitos por conta do arrematante (ver edital)");
+  if (/alagad|enchente|submers/i.test(lx)) alertas.push("Possível veículo alagado");
+  if (/restri[çc][ãa]o\s*judicial|bloqueio\s*judicial/i.test(lx)) alertas.push("Restrição judicial");
+  const host = (p.h || "").replace(/^www\./, "");
+  const dom = Object.keys(NOME_LEILOEIRO).find(d => host === d || host.endsWith("." + d));
+  return {lote: {marca_modelo: nome, titulo: nome, ano: anos, km, tipo, lance_atual: lance || 0, valor_fipe: fipe, reparo_estimado: 0,
+    data_leilao: data || "", local: local || "", leiloeiro: dom ? NOME_LEILOEIRO[dom] : host, url: p.u, condicao: "", alertas, fipe_fonte: fipe ? "página do lote" : ""},
+    achados, confiavel: !!dom, host};
+}
+(function receberLote() {
+  if (!location.hash.startsWith("#lote=")) return;
+  // Guarda o texto bruto; a extração roda na hora de mostrar (as tabelas de leiloeiros são definidas mais abaixo).
+  try { estado.loteLido = {bruto: decodificarHash(location.hash.slice(6)), em: Date.now()}; salvar(); }
+  catch (e) { alert("Não consegui ler o lote: " + e.message); }
+  history.replaceState(null, "", location.pathname + "#leiloes");
+})();
+
 // Recebe os anúncios vindos do favorito (#olx=...) e guarda neste navegador.
 (function receberImportacao() {
   const h = location.hash;
@@ -621,7 +671,7 @@ function blocoInstalarFavorito() {
     <ol class="muted" style="margin:0;padding-left:18px;line-height:2.4">
       <li>Mostre a barra de favoritos do navegador (<b>Ctrl+Shift+B</b> no Chrome/Edge).</li>
       <li><b>Arraste</b> este botão para a barra: <a class="btn primario" href="${linkFavorito()}" onclick="alert('Não clique aqui: ARRASTE este botão para a barra de favoritos.');return false;">📥 Analisar no Revenda RJ</a></li>
-      <li>Abra uma busca da OLX (pelos botões "🔎 Buscar na OLX" ou do jeito que quiser) e, com os anúncios na tela, clique no favorito.</li>
+      <li>Na OLX: abra uma busca e, com os anúncios na tela, clique no favorito. Num <b>lote de leilão</b>: abra a página do lote e clique no favorito.</li>
     </ol>
     <p class="mini" style="margin:8px 0 0">O favorito só lê os anúncios que já estão na sua tela e abre este painel com eles. Nada é enviado a servidor algum. A análise da IA (risco, perguntas) não roda aqui; a conta de lucro sim.</p>
   </div>`;
@@ -739,9 +789,9 @@ function renderLeiloes() {
   if (L.config && L.config.ativa === false && !L.lotes.length) {
     const cfg = CFG_LEIL();
     const meus = lotesManuais();
-    setTimeout(atualizarCalc, 0);
+    setTimeout(() => { atualizarCalc(); { const L = loteLido(); if (L) preencherCalc(L.lote); } }, 0);
     return `<p class="muted">Os sites de leilão só mostram os lotes no seu navegador. Abra um leiloeiro abaixo, filtre por <b>veículos</b> e <b>RJ</b>, e jogue o carro que gostou na calculadora: ela faz a conta completa e diz até quanto vale dar de lance. Lance máximo configurado: <b>${brl(cfg.lance_max)}</b>.</p>`
-      + blocoSitesLeilao() + blocoCalculadora()
+      + blocoColarLink() + blocoLoteLido() + blocoCalculadora() + blocoSitesLeilao()
       + (meus.length ? `<h2>⭐ Meus lotes (${meus.length})</h2><div class="grade">${meus.map(l => cardLote(l)).join("")}</div>` : "")
       + guiaLeilao();
   }
@@ -756,8 +806,8 @@ function renderLeiloes() {
   if (L.ultima?.resumo) html += `<div class="resumo-ia" style="margin-top:12px">🤖 ${esc(L.ultima.resumo)}</div>`;
   const meus = lotesManuais();
   if (meus.length) html += `<h2>⭐ Meus lotes (${meus.length})</h2><div class="grade">${meus.map(l => cardLote(l)).join("")}</div>`;
-  html += blocoSitesLeilao() + blocoCalculadora();
-  setTimeout(atualizarCalc, 0);
+  html += blocoColarLink() + blocoLoteLido() + blocoCalculadora() + blocoSitesLeilao();
+  setTimeout(() => { atualizarCalc(); { const L = loteLido(); if (L) preencherCalc(L.lote); } }, 0);
   return html + guiaLeilao();
 }
 
@@ -777,6 +827,47 @@ function lotesManuais() {
   const cfg = CFG_LEIL();
   return (estado.lotesManuais || []).map(l => { const c = contaLoteJs(l, cfg); return {...l, conta: c, situacao: situacaoLote(l, c, cfg), manual: true}; });
 }
+function blocoColarLink() {
+  return `<h2>🔗 Analisar um lote pelo link</h2>
+    <div class="card" style="padding:16px">
+      <form id="form-link-lote" class="filtros" style="margin:0">
+        <input name="link" type="url" required placeholder="Cole aqui o link do lote (ex.: https://www.copart.com.br/lot/...)" style="flex:1;min-width:240px">
+        <button class="btn primario" type="submit">Abrir lote</button>
+      </form>
+      <p class="mini" style="margin:10px 0 0">O lote abre numa aba nova. Quando a página carregar, clique no favorito <b>📥 Analisar no Revenda RJ</b> lá: ele lê o lote e volta aqui com a calculadora preenchida e o veredito. (O painel não consegue ler outro site sozinho: o navegador bloqueia por segurança.)</p>
+      <details class="mini" style="margin-top:6px"><summary>Ainda não tem o favorito?</summary>${blocoInstalarFavorito()}</details>
+    </div>`;
+}
+const loteLido = () => estado.loteLido?.bruto ? extrairLote(estado.loteLido.bruto) : null;
+function blocoLoteLido() {
+  const L = loteLido(); if (!L) return "";
+  const cfg = CFG_LEIL(), c = contaLoteJs(L.lote, cfg), sit = situacaoLote(L.lote, c, cfg);
+  const falta = [!L.lote.lance_atual && "lance", !L.lote.valor_fipe && "FIPE", !L.lote.ano && "ano"].filter(Boolean);
+  const veredito = falta.length ? `<b>Faltou ler: ${falta.join(", ")}.</b> Complete na calculadora abaixo (a FIPE você acha no botão "Consultar FIPE").`
+    : sit === "lucro" ? `✅ <b>Viável:</b> lucro estimado de ${brl(c.lucro)} (${pct(c.margem)}). Não passe de <b>${brl(c.lance_maximo_lucrativo)}</b> de lance.`
+    : sit === "apertado" ? `⚠️ <b>Margem apertada</b> (${pct(c.margem)}). Só vale com lance até <b>${brl(c.lance_maximo_lucrativo)}</b>.`
+    : sit === "pecas" ? `⛔ <b>Não viável para revenda:</b> ${TIPO_LOTE[L.lote.tipo]}.`
+    : sit === "acima_orcamento" ? `⛔ <b>Acima do seu lance máximo</b> (${brl(cfg.lance_max)}).`
+    : `⛔ <b>Não viável:</b> prejuízo estimado de ${brl(c.lucro)}.`;
+  return `<div class="aviso exemplo-aviso" style="border-left-color:${sit === "lucro" && !falta.length ? "var(--good)" : "var(--warning)"}">
+    <b>Lote lido de ${esc(L.host)}</b>${L.confiavel ? "" : " ⚠️ (site fora da lista de leiloeiros conhecidos: confira a matrícula na Junta Comercial)"}: ${esc(L.lote.marca_modelo || "?")}<br>${veredito}
+    ${L.lote.alertas.length ? `<div style="margin-top:6px">⚠️ <b>Atenção:</b> ${L.lote.alertas.map(esc).join(" · ")}</div>` : ""}
+    <details style="margin-top:6px"><summary>O que foi lido da página</summary><ul>${L.achados.map(a => `<li>${esc(a)}</li>`).join("") || "<li>nada reconhecido</li>"}</ul>
+    <p class="mini">A leitura é automática e pode errar: confira os campos da calculadora com a página do lote. O reparo começa em R$ 0: ajuste pelo que você viu nas fotos.</p></details>
+    <div class="acoes"><button class="btn" data-descartar-lido>Descartar leitura</button></div></div>`;
+}
+function preencherCalc(l) {
+  const form = document.getElementById("calc-lote"); if (!form || !l) return;
+  for (const [k, v] of Object.entries(l)) { const el = form.elements[k]; if (el && v != null && v !== "" && v !== 0) el.value = v; }
+  if (l.tipo) form.elements.tipo.value = l.tipo;
+  atualizarCalc();
+}
+document.addEventListener("submit", e => {
+  if (e.target.id !== "form-link-lote") return;
+  e.preventDefault();
+  const u = new FormData(e.target).get("link");
+  if (/^https?:\/\//i.test(u)) window.open(u, "_blank", "noopener");
+});
 function blocoCalculadora() {
   const tipos = Object.entries(TIPO_LOTE).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
   return `<h2>🧮 Calculadora de lote</h2>
@@ -827,7 +918,7 @@ document.addEventListener("submit", e => {
   const l = lerCalc(e.target);
   if (l.url && !/^https?:\/\//i.test(l.url)) l.url = "";
   l.id = "manual-" + Date.now();
-  (estado.lotesManuais ||= []).unshift(l); salvar(); render();
+  (estado.lotesManuais ||= []).unshift(l); delete estado.loteLido; salvar(); render();
 });
 
 // ---------------------------------------------------------------- aba Hoje
@@ -1201,6 +1292,7 @@ document.addEventListener("click", e => {
     estado.exemplos[aba] = !atual; salvar(); render(); return;
   }
   if (e.target.closest("[data-exemplo-link]")) { e.preventDefault(); alert("Este é um card de exemplo: os links aparecem nos cards reais."); return; }
+  if (e.target.closest("[data-descartar-lido]")) { delete estado.loteLido; salvar(); render(); return; }
   const rl = e.target.closest("[data-remover-lote]");
   if (rl) { estado.lotesManuais = (estado.lotesManuais || []).filter(l => l.id !== rl.dataset.removerLote); salvar(); render(); return; }
   if (e.target.closest("[data-limpar-olx]")) { if (confirm("Apagar os anúncios trazidos da OLX?")) { delete estado.importOlx; IMPORTADOS = []; salvar(); render(); } return; }
