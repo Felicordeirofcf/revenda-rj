@@ -443,7 +443,7 @@ const enc=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g
 const abrir=u=>{const w=window.open(u,'_blank');if(!w)location.href=u};
 if(!/(^|\.)olx\.com\.br$/.test(location.hostname)){
 const meta=n=>{const m=document.querySelector('meta[property="'+n+'"],meta[name="'+n+'"]');return m?m.content:''};
-const txt=(document.body.innerText||'').replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').slice(0,15000);
+const txt=(document.body.innerText||'').replace(/\t+/g,' | ').replace(/ +/g,' ').replace(/\n\s*\n+/g,'\n').slice(0,20000);
 if(txt.length<200){alert('Esta página ainda não carregou o lote. Espere carregar e clique de novo.');return}
 abrir('__PAINEL__#lote='+enc({v:1,u:location.href,h:location.hostname,t:document.title,ot:meta('og:title'),oi:meta('og:image'),x:txt}));return}
 let L=[];
@@ -605,39 +605,129 @@ function decodificarHash(b) {
 }
 const numBR = t => { if (!t) return null; let v = String(t).replace(/[^\d,.]/g, ""); if (v.includes(",")) v = v.replace(/\./g, "").replace(",", "."); else v = v.replace(/\./g, ""); const n = parseFloat(v); return isFinite(n) && n > 0 ? n : null; };
 function extrairLote(p) {
-  const x = p.x || "", lx = x.toLowerCase(), achados = [];
-  const pega = (rot, re, f = v => v) => { const m = x.match(re); if (m) { achados.push(`${rot}: “${m[0].replace(/\s+/g, " ").trim().slice(0, 80)}”`); return f(m); } return null; };
-  const anos = pega("ano", /ano(?:\s*(?:de\s*)?(?:fabrica[çc][ãa]o|fab\.?|modelo|fab\/mod\.?))?\s*[:\-]?\s*((?:19|20)\d{2})(?:\s*\/\s*((?:19|20)\d{2}))?/i, m => Number(m[2] || m[1]))
-    ?? pega("ano", /\b((?:19|20)\d{2})\s*\/\s*((?:19|20)\d{2})\b/, m => Number(m[2]));
-  const km = pega("km", /(?:quilometragem|km)\s*[:\-]?\s*(\d{1,3}(?:\.\d{3})+|\d{3,7})\b/i, m => numBR(m[1])) ?? pega("km", /\b(\d{1,3}(?:\.\d{3})+|\d{4,7})\s*km\b/i, m => numBR(m[1]));
-  const lance = pega("lance", /lance\s*(?:atual|inicial|m[íi]nimo|vencedor)?\s*[:\-]?\s*R\$\s*([\d.]+(?:,\d{2})?)/i, m => numBR(m[1]))
-    ?? pega("lance", /(?:valor\s*(?:atual|inicial|m[íi]nimo)|oferta\s*atual)\s*[:\-]?\s*R\$\s*([\d.]+(?:,\d{2})?)/i, m => numBR(m[1]));
-  const fipe = pega("FIPE", /fipe[^R\n]{0,40}R\$\s*([\d.]+(?:,\d{2})?)/i, m => numBR(m[1]));
-  let tipo = "outro";
-  if (/recuperad[oa]s?\s*(?:de\s*)?financ/i.test(lx) || /financeira|retomad/i.test(lx)) tipo = "recuperado_financiamento";
+  const x = (p.x || "").replace(/ /g, " "), lx = x.toLowerCase(), achados = [], ficha = {};
+  const linhas = x.split("\n").map(l => l.trim()).filter(Boolean);
+  const pega = (rot, re, f = v => v) => { const m = x.match(re); if (m) { achados.push(`${rot}: “${m[0].replace(/\s+/g, " ").trim().slice(0, 90)}”`); return f(m); } return null; };
+  const R$ = String.raw`R\$\s*([\d.]+(?:,\d{2})?)`;
+  const rx = (s, f = "i") => new RegExp(s, f);
+
+  // 1) Pares "rótulo: valor" e tabelas (linha de títulos seguida da linha de valores, colunas separadas por " | ")
+  const pares = [];
+  linhas.forEach((l, i) => {
+    const cols = l.split(/\s*\|\s*/).filter(c => c !== ""), prox = (linhas[i + 1] || "").split(/\s*\|\s*/).filter(c => c !== "");
+    if (cols.length >= 3) {
+      // Linha de títulos de tabela seguida da linha de valores
+      if (cols.every(c => /^[A-Za-zÀ-ú][A-Za-zÀ-ú .\/]{1,25}$/.test(c)) && prox.length >= cols.length - 2)
+        cols.forEach((c, k) => prox[k] && pares.push([c.trim(), prox[k].trim()]));
+      return;
+    }
+    const m = l.match(/^([A-Za-zÀ-ú][A-Za-zÀ-ú0-9 .\/()ºª-]{1,38}?)\s*[:|]\s*(.{1,140})$/);
+    if (m && !/^https?$/i.test(m[1])) pares.push([m[1].replace(/:$/, "").trim(), m[2].replace(/\s*\|\s*/g, " ").trim()]);
+  });
+  // rótulo numa linha e valor na seguinte (ex.: "Maior lance:" / "R$ 16.000,00")
+  linhas.forEach((l, i) => { const m = l.match(/^([A-Za-zÀ-ú][A-Za-zÀ-ú .\/()]{2,30}):$/); if (m && linhas[i + 1] && linhas[i + 1].length < 80) pares.push([m[1], linhas[i + 1]]); });
+  const par = re => { const k = pares.find(([r]) => re.test(r)); return k ? k[1] : null; };
+
+  // 2) Descrição, modelo e ano
+  const descricao = pega("descrição", /descri[çc][ãa]o(?:\s*completa)?\s*:?\s*\n\s*([^\n]{5,200})/i, m => m[1].trim())
+    || par(/^descri[çc][ãa]o/i) || "";
+  const tituloPag = ((p.ot || p.t || "").split(/\s[|\-–—]\s/)[0] || "").trim();
+  const baseNome = (descricao || tituloPag).split(",")[0].replace(/\//g, " ").replace(/\s+/g, " ").trim();
+  let ano = pega("ano", /ano(?:\s*(?:de\s*)?(?:fabrica[çc][ãa]o|fab\.?|modelo|fab\/mod\.?))?\s*[:\-|]?\s*((?:19|20)\d{2})(?:\s*\/\s*((?:19|20)\d{2}))?/i, m => Number(m[2] || m[1]))
+    ?? pega("ano", /\b((?:19|20)\d{2})\s*\/\s*((?:19|20)\d{2})\b/, m => Number(m[2]))
+    ?? (descricao ? (m => m ? (achados.push(`ano: “${m[0].trim()}”`), 2000 + Number(m[2])) : null)(descricao.match(/,\s*(\d{2})\s*\/\s*(\d{2})\s*(?:,|$)/)) : null);
+  const km = pega("km", /(?:quilometragem|km(?:\s*rodados)?)\s*[:\-|]?\s*(\d{1,3}(?:\.\d{3})+|\d{3,7})\b/i, m => numBR(m[1])) ?? pega("km", /\b(\d{1,3}(?:\.\d{3})+|\d{4,7})\s*km\b/i, m => numBR(m[1]));
+
+  // 3) Lances, incremento, comissão e despesas
+  const rotuloValor = (rot, nome) => pega(nome, rx(`${rot}\\s*:\\s*\\|?\\s*\\n?\\s*${R$}`), m => numBR(m[1]))
+    ?? pega(nome, rx(`${R$}\\s*\\|?\\s*\\n\\s*${rot}`), m => numBR(m[1]))
+    ?? pega(nome, rx(`${rot}\\s*\\|?\\s*${R$}`), m => numBR(m[1]));
+  const lanceInicial = rotuloValor(String.raw`lance\s*inicial`, "lance inicial");
+  const maiorLance = pega("maior lance", rx(`(?:maior\\s*lance|lance\\s*atual|[úu]ltimo\\s*lance|oferta\\s*atual)\\s*[:|]?\\s*\\n?\\s*${R$}`), m => numBR(m[1]));
+  const incremento = rotuloValor(String.raw`incremento(?:\s*m[íi]nimo)?`, "incremento");
+  const lanceGenerico = maiorLance == null && lanceInicial == null ? pega("lance", rx(`lance\\s*(?:m[íi]nimo|vencedor)?\\s*[:|]?\\s*${R$}`), m => numBR(m[1])) : null;
+  const paraCobrir = maiorLance != null ? maiorLance + (incremento || 0) : (lanceInicial ?? lanceGenerico);
+  const comissao = pega("comissão", /(\d{1,2}(?:,\d+)?)\s*%\s*(?:referente\s*[àa]\s*|de\s*)?comiss[ãa]o/i, m => numBR(m[1])) ?? pega("comissão", /comiss[ãa]o[^%\n]{0,50}?(\d{1,2}(?:,\d+)?)\s*%/i, m => numBR(m[1]));
+  const despesas = pega("despesas do leiloeiro", rx(`(?:despesas?\\s*(?:operacionais|administrativas)?|taxa\\s*(?:administrativa|de\\s*leil[ãa]o|operacional))[^\\n]{0,50}?${R$}`), m => numBR(m[1]));
+  const fipe = pega("FIPE", rx(`fipe[^\\n]{0,40}?${R$}`), m => numBR(m[1]));
+
+  // 4) Situação jurídica/financeira do veículo
+  const ipvaPago = /ipva\s*(?:\d{4}\s*)?(?:pago|quitado)/i.test(x);
+  const debitos = ipvaPago ? 0 : pega("débitos", rx(`(?:d[ée]bitos?|ipva|multas?)[^\\n]{0,40}?${R$}`), m => numBR(m[1]));
+  const bancos = /(santander|aymor[ée]|bradesco|ita[úu]|banco\s*pan|bv\s*financeira|banco\s*bv|safra|omni|sicoob|sicredi|caixa\s*econ[ôo]mica|banco\s*do\s*brasil|volkswagen\s*financial|gm\s*financial|banco\s*gm|toyota\s*financial|honda\s*(?:servi[çc]os|financeira)|yamaha\s*(?:servi[çc]os|financeira)|banco\s*rci|mercedes[\s-]*benz\s*financial)/i;
+  const seguradoras = /(porto\s*seguro|azul\s*seguros|tokio\s*marine|allianz|hdi|mapfre|liberty|bradesco\s*seguros|sulam[ée]rica|youse|ita[úu]\s*seguros|sompo|zurich|suhai)/i;
+  const comitente = par(/^comitente|^vendedor|^propriet/i) || (x.match(seguradoras) || x.match(bancos) || [])[1] || null;
+  let tipo = "outro", tipoProvavel = false;
+  if (/recuperad[oa]s?\s*(?:de\s*)?financ|rec\.\s*de\s*financ|retomad|busca\s*e\s*apreens/i.test(lx)) tipo = "recuperado_financiamento";
   if (/pequena\s*monta/i.test(lx)) tipo = "sinistro_pequena_monta";
   if (/m[ée]dia\s*monta/i.test(lx)) tipo = "sinistro_media_monta";
-  if (/grande\s*monta/i.test(lx)) tipo = "sinistro_grande_monta";
+  if (/grande\s*monta|circula[çc][ãa]o\s*proibida|apenas\s*(?:para\s*)?pe[çc]as/i.test(lx)) tipo = "sinistro_grande_monta";
   if (/\bsucata\b|baixa\s*permanente|irrecuper[áa]vel/i.test(lx)) tipo = "sucata";
-  if (tipo !== "outro") achados.push(`tipo: ${TIPO_LOTE[tipo]}`);
-  const local = pega("local", /(?:p[áa]tio|local(?:iza[çc][ãa]o)?(?:\s*do\s*(?:ve[íi]culo|lote))?|cidade)\s*[:\-]\s*([^\n]{3,60})/i, m => m[1].trim())
-    ?? pega("local", /\b([A-ZÀ-Ú][A-Za-zÀ-ú .']{2,40})\s*[\/\-]\s*(RJ|SP|MG|ES)\b/, m => `${m[1].trim()}/${m[2]}`);
-  const data = pega("data", /(?:leil[ãa]o|encerra(?:mento)?|data)[^\d\n]{0,30}(\d{2})\/(\d{2})\/(\d{4})/i, m => `${m[3]}-${m[2]}-${m[1]}`);
-  const nome = ((p.ot || p.t || "").split(/\s[|\-–—]\s/)[0] || "").trim();
-  const alertas = [];
+  if (tipo === "outro" && seguradoras.test(x)) { tipo = "sinistro_pequena_monta"; tipoProvavel = true; }
+  if (tipo === "outro" && bancos.test(x)) { tipo = "recuperado_financiamento"; tipoProvavel = true; }
+  if (tipo !== "outro") achados.push(`tipo: ${TIPO_LOTE[tipo]}${tipoProvavel ? " (provável, pelo comitente)" : ""}`);
+
+  // 5) Datas, status, local, leiloeiro, características
+  const datas = [...x.matchAll(/(\d{2})\/(\d{2})\/(\d{4})(?:\s*(?:às|as|-|\|)?\s*(\d{1,2})[:h](\d{2})?)?/g)];
+  const dataLeilao = (() => {
+    const v = par(/^data(?:\s*do)?\s*leil[ãa]o|^encerramento|^data\s*de\s*encerramento/i);
+    const m = v && v.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+    const hoje = new Date().toISOString().slice(0, 10);
+    const fut = datas.map(d => `${d[3]}-${d[2]}-${d[1]}`).filter(d => d >= hoje).sort()[0];
+    return fut || "";
+  })();
+  const horario = par(/^hor[áa]rio|^hora/i);
+  const status = (x.match(/\b(ABERTO|ABERTA|EM\s+LOTEAMENTO|ENCERRADO|ARREMATADO|VENDIDO|CONDICIONAL|SUSPENSO|CANCELADO|RETIRADO|EM\s+ANDAMENTO|PR[ÓO]XIMO)\b/) || [])[1] || null;
+  const local = (par(/visita[çc][ãa]o|retirada|p[áa]tio|^local/i) || "").replace(/\s+/g, " ").replace(/^(.*?\b(?:RJ|SP|MG|ES)\b).*$/, "$1") || pega("local", /\b([A-ZÀ-Ú][A-Za-zÀ-ú .']{2,40})\s*[\/\-]\s*(RJ|SP|MG|ES)\b/, m => `${m[1].trim()}/${m[2]}`) || "";
+  const placa = (descricao.match(/placa\s*:?\s*([^,]{3,12})/i) || x.match(/placa\s*[:|]?\s*([A-Z_\-\d]{3,9})/i) || [])[1] || null;
+  const combustivel = (x.match(/\b(gasolina|flex|diesel|etanol|[áa]lcool|el[ée]trico|h[íi]brido|gnv)\b/i) || [])[1] || null;
+  const cor = (descricao.match(/\b(preto|preta|branco|branca|prata|cinza|vermelho|vermelha|azul|verde|amarelo|amarela|bege|marrom|dourado|vinho|laranja|grafite)\b/i) || [])[1] || null;
+  const leiloeiroPessoa = par(/^leiloeiro/i);
+  const modalidade = par(/^modalidade/i) || (/somente\s*online/i.test(x) ? "Somente online" : /presencial/i.test(x) ? "Presencial e/ou online" : null);
+  const loteNum = par(/^lote$/i) || (x.match(/\blote\s*(?:n[ºo°.]*)?\s*[:|]?\s*(\d{1,6})\b/i) || [])[1] || null;
+  const visitas = par(/^visitas?$/i), curtidas = par(/^curtidas?$|^favoritos?$|^interessados?$/i);
+  const lancesQtd = par(/^(?:n[ºo°.]*\s*de\s*)?lances$|^total\s*de\s*lances/i);
+  const prazoRetirada = (x.match(/prazo\s*(?:de|para)\s*retirada[^\n]{0,80}/i) || [])[0] || null;
+
+  // 6) Alertas e pontos positivos
+  const alertas = [], positivos = [];
   if (/sem\s*chave/i.test(lx)) alertas.push("Sem chave");
-  if (/n[ãa]o\s*(?:liga|funciona|d[áa]\s*partida)/i.test(lx)) alertas.push("Não liga / não funciona: risco de motor");
+  if (/n[ãa]o\s*(?:liga|funciona|d[áa]\s*partida)|motor\s*(?:fundido|travado|batido)/i.test(lx)) alertas.push("Não liga / problema de motor");
+  if (/mec[âa]nica\s*sem\s*teste|vendido\s*no\s*estado|sem\s*garantia/i.test(lx)) alertas.push("Vendido no estado: mecânica sem teste e sem garantia (avalie na visitação)");
+  if (/condicional|sujeit[oa]\s*[àa]\s*aprova[çc][ãa]o|an[áa]lise\s*do\s*banco/i.test(lx)) alertas.push("Venda condicional: o comitente (banco) pode recusar o lance");
   if (/d[ée]bitos?\s*(?:por\s*conta|de\s*responsabilidade)\s*do\s*arrematante/i.test(lx)) alertas.push("Débitos por conta do arrematante (ver edital)");
   if (/alagad|enchente|submers/i.test(lx)) alertas.push("Possível veículo alagado");
-  if (/restri[çc][ãa]o\s*judicial|bloqueio\s*judicial/i.test(lx)) alertas.push("Restrição judicial");
-  const moto = /\bmoto(?:cicleta|neta)?s?\b|\b\d{2,4}\s?cc\b|\bhonda\s+(?:cg|biz|pop|bros|xre|cb|nxr|pcx|elite|adv)\b|\byamaha\b|\b(?:fazer|factor|lander|crosser|nmax|xmax|neo|mt-?\d{2})\b|\bsuzuki\b|\bkawasaki\b|\bharley\b|\btriumph\b|\bdafra\b|\bshineray\b/i.test(lx + " " + (p.ot || p.t || "").toLowerCase());
+  if (/remarcad|adulterad/i.test(lx)) alertas.push("Chassi/motor remarcado: atenção à documentação e à revenda");
+  if (/restri[çc][ãa]o\s*judicial|bloqueio\s*judicial|renajud/i.test(lx)) alertas.push("Restrição judicial");
+  if (/sem\s*documento|sem\s*doc\b|documento\s*n[ãa]o\s*dispon/i.test(lx)) alertas.push("Sem documento");
+  if (/fotos?\s*meramente\s*ilustrativ/i.test(lx)) alertas.push("Fotos meramente ilustrativas: confirme o estado na visitação");
+  if (ipvaPago) positivos.push((x.match(/ipva\s*\d{0,4}\s*(?:pago|quitado)/i) || ["IPVA pago"])[0].toUpperCase());
+  if (/visita[çc][ãa]o\s*virtual|vistoria\s*cautelar|laudo\s*cautelar\s*(?:aprovado|dispon)/i.test(lx)) positivos.push("Tem visitação virtual / laudo disponível");
+  if (/com\s*chave|chave\s*reserva/i.test(lx)) positivos.push("Com chave");
+  if (/(?:liga|funciona)\s*e\s*anda|em\s*funcionamento/i.test(lx)) positivos.push("Liga e anda (segundo o anúncio)");
+
+  const moto = /\bmoto(?:cicleta|neta)?s?\b|\b\d{2,4}\s?cc\b|\bhonda\s+(?:cg|biz|pop|bros|xre|cb|nxr|pcx|elite|adv)\b|\byamaha\b|\b(?:fazer|factor|lander|crosser|nmax|xmax|neo|xtz|ybr|mt-?\d{2})\b|\bsuzuki\b|\bkawasaki\b|\bharley\b|\btriumph\b|\bdafra\b|\bshineray\b/i.test(lx + " " + (p.ot || p.t || "").toLowerCase());
   if (moto) achados.push("veículo: moto");
-  const debitos = pega("débitos", /(?:d[ée]bitos?|ipva)[^R\n]{0,40}R\$\s*([\d.]+(?:,\d{2})?)/i, m => numBR(m[1]));
   const host = (p.h || "").replace(/^www\./, "");
   const dom = Object.keys(NOME_LEILOEIRO).find(d => host === d || host.endsWith("." + d));
-  return {lote: {veiculo: moto ? "moto" : "carro", debitos: debitos || 0, marca_modelo: nome, titulo: nome, ano: anos, km, tipo, lance_atual: lance || 0, valor_fipe: fipe, reparo_estimado: 0,
-    data_leilao: data || "", local: local || "", leiloeiro: dom ? NOME_LEILOEIRO[dom] : host, url: p.u, condicao: "", alertas, fipe_fonte: fipe ? "página do lote" : ""},
-    achados, confiavel: !!dom, host};
+
+  Object.assign(ficha, {
+    "Lote": loteNum, "Status": status, "Data do leilão": dataLeilao ? diaMes(dataLeilao) + "/" + dataLeilao.slice(0, 4) : null, "Horário": horario,
+    "Modalidade": modalidade, "Comitente (dono)": comitente, "Leiloeiro": leiloeiroPessoa || (dom ? NOME_LEILOEIRO[dom] : host),
+    "Lance inicial": lanceInicial != null ? brl(lanceInicial) : null, "Maior lance": maiorLance != null ? brl(maiorLance) : null,
+    "Incremento mínimo": incremento != null ? brl(incremento) : null, "Para cobrir você precisa dar": paraCobrir != null ? brl(paraCobrir) : null,
+    "Lances": lancesQtd, "Comissão do leiloeiro": comissao != null ? comissao + "%" : null, "Despesas do leiloeiro": despesas != null ? brl(despesas) : null,
+    "IPVA": ipvaPago ? "pago" : (debitos ? brl(debitos) + " em débitos" : null), "Placa": placa, "Combustível": combustivel, "Cor": cor,
+    "Visitas": visitas, "Curtidas / interessados": curtidas, "Visitação e retirada": local || null, "Prazo de retirada": prazoRetirada,
+  });
+  for (const k of Object.keys(ficha)) if (ficha[k] == null || ficha[k] === "") delete ficha[k];
+
+  return {lote: {veiculo: moto ? "moto" : "carro", debitos: debitos || 0, marca_modelo: baseNome || tituloPag, titulo: descricao || tituloPag, ano, km, tipo,
+      lance_atual: paraCobrir || 0, maior_lance: maiorLance, incremento, lance_inicial: lanceInicial, valor_fipe: fipe, reparo_estimado: 0, comissao_pct: comissao, taxas_leiloeiro: despesas || 0,
+      data_leilao: dataLeilao || "", local: local || "", leiloeiro: dom ? NOME_LEILOEIRO[dom] : host, url: p.u, condicao: descricao, alertas, fipe_fonte: fipe ? "página do lote" : ""},
+    achados, ficha, pares: pares.slice(0, 60), positivos, tipoProvavel, confiavel: !!dom, host,
+    concorrencia: {visitas: numBR(visitas), curtidas: numBR(curtidas), lances: numBR(lancesQtd), subiu: lanceInicial && maiorLance ? (maiorLance / lanceInicial - 1) * 100 : null}};
 }
 (function receberLote() {
   if (!location.hash.startsWith("#lote=")) return;
@@ -707,24 +797,25 @@ const SIT_LOTE = {lucro: ["Vale a pena", "var(--good)"], arriscado: ["Lucro, mas
 // Análise completa do lote: capital, lucro, margem, retorno ao mês, ponto de equilíbrio e cenário pessimista.
 function contaLoteJs(l, cfg) {
   const moto = l.veiculo === "moto";
-  const c = cfg.comissao_leiloeiro_pct / 100;
+  const comissaoPct = l.comissao_pct != null && l.comissao_pct !== "" ? Number(l.comissao_pct) : cfg.comissao_leiloeiro_pct;
+  const c = comissaoPct / 100;
   const lance = Number(l.lance_atual) || 0, comissao = lance * c;
   const custos = moto ? (cfg.custos_fixos_moto_reais ?? 1200) : cfg.custos_fixos_reais;
-  const reparo = Number(l.reparo_estimado) || 0, debitos = Number(l.debitos) || 0;
-  const total = lance + comissao + custos + reparo + debitos;
+  const reparo = Number(l.reparo_estimado) || 0, debitos = Number(l.debitos) || 0, taxas = Number(l.taxas_leiloeiro) || 0;
+  const total = lance + comissao + custos + reparo + debitos + taxas;
   const desagio = (cfg.desagio_revenda_pct || {})[l.tipo] ?? (cfg.desagio_revenda_pct || {}).outro ?? 20;
   const revenda = l.valor_fipe ? l.valor_fipe * (1 - desagio / 100) : null;
   const lucro = revenda != null ? revenda - total : null;
   const margem = lucro != null && total ? lucro / total * 100 : null;
   const dias = Number(l.dias_venda) || (cfg.dias_para_vender || {})[moto ? "moto" : "carro"] || 30;
   const roiMes = margem != null ? margem * 30 / Math.max(dias, 1) : null;
-  const fixos = custos + reparo + debitos;
+  const fixos = custos + reparo + debitos + taxas;
   const arred = v => v == null ? null : Math.max(0, Math.round(v / 100) * 100);
   const equilibrio = revenda != null ? arred((revenda - fixos) / (1 + c)) : null;
   const lmax = revenda != null ? arred((revenda / (1 + cfg.margem_min_pct / 100) - fixos) / (1 + c)) : null;
   const pess = cfg.pessimista || {revenda_menor_pct: 10, reparo_maior_pct: 50};
-  const lucroPess = revenda != null ? revenda * (1 - pess.revenda_menor_pct / 100) - (lance + comissao + custos + reparo * (1 + pess.reparo_maior_pct / 100) + debitos) : null;
-  return {lance, comissao, custos, reparo, debitos, total, fipe: l.valor_fipe, desagio_pct: desagio, revenda, lucro, margem,
+  const lucroPess = revenda != null ? revenda * (1 - pess.revenda_menor_pct / 100) - (lance + comissao + custos + reparo * (1 + pess.reparo_maior_pct / 100) + debitos + taxas) : null;
+  return {lance, comissao, comissao_pct: comissaoPct, custos, reparo, debitos, taxas, total, fipe: l.valor_fipe, desagio_pct: desagio, revenda, lucro, margem,
     dias, roi_mes: roiMes, equilibrio, lance_maximo_lucrativo: lmax, lucro_pessimista: lucroPess, moto};
 }
 const CFG_LEIL = () => ({comissao_leiloeiro_pct: 5, custos_fixos_reais: 2500, custos_fixos_moto_reais: 1200, margem_min_pct: 15, lance_max: 30000,
@@ -757,7 +848,8 @@ function painelAnalise(c, cfg, sit) {
   const sinal = v => v == null ? "—" : (v >= 0 ? "+" : "") + brl(v);
   const linha = (r, v, cls = "") => `<span class="neg">${r}</span><span class="${cls}">${v}</span>`;
   return `<div class="conta">
-    ${linha("lance", brl(c.lance))}${linha(`comissão ${cfg.comissao_leiloeiro_pct}%`, brl(c.comissao))}
+    ${linha("lance", brl(c.lance))}${linha(`comissão ${String(c.comissao_pct).replace(".", ",")}%`, brl(c.comissao))}
+    ${c.taxas ? linha("despesas cobradas pelo leiloeiro", brl(c.taxas)) : ""}
     ${linha(`pátio, despachante, laudo, transporte (${c.moto ? "moto" : "carro"})`, brl(c.custos))}
     ${linha("reparo estimado", brl(c.reparo))}${c.debitos ? linha("débitos (IPVA, multas)", brl(c.debitos)) : ""}
     ${linha("<b>capital necessário</b>", brl(c.total), "tot")}
@@ -770,13 +862,22 @@ function painelAnalise(c, cfg, sit) {
   </div>`;
 }
 function vereditoLote(c, cfg, sit, l) {
-  return sit === "lucro" ? `✅ <b>Vale a pena:</b> lucro de ${brl(c.lucro)} (${pct(c.margem)}), ~${pct(c.roi_mes)} ao mês, e ainda lucra ${brl(c.lucro_pessimista)} no cenário pessimista. Não passe de <b>${brl(c.lance_maximo_lucrativo)}</b> de lance.`
+  return linhaLanceAtual(c, l) + (sit === "lucro" ? `✅ <b>Vale a pena:</b> lucro de ${brl(c.lucro)} (${pct(c.margem)}), ~${pct(c.roi_mes)} ao mês, e ainda lucra ${brl(c.lucro_pessimista)} no cenário pessimista. Não passe de <b>${brl(c.lance_maximo_lucrativo)}</b> de lance.`
     : sit === "arriscado" ? `⚠️ <b>Lucro, mas arriscado:</b> ${brl(c.lucro)} (${pct(c.margem)}) no cenário normal, mas <b>prejuízo de ${brl(-c.lucro_pessimista)}</b> se der algo errado. Só vale com lance bem abaixo de ${brl(c.lance_maximo_lucrativo)} ou depois de ver o carro.`
     : sit === "apertado" ? `⚠️ <b>Margem apertada</b> (${pct(c.margem)}). Só vale com lance até <b>${brl(c.lance_maximo_lucrativo)}</b>.`
     : sit === "pecas" ? `⛔ <b>Não vale para revenda:</b> ${TIPO_LOTE[l.tipo]}.`
     : sit === "acima_orcamento" ? `⛔ <b>Acima do seu lance máximo</b> (${brl(cfg.lance_max)}).`
     : sit === "sem_fipe" ? `ℹ️ Informe a <b>FIPE</b> para ver se vale a pena.`
-    : `⛔ <b>Não vale a pena:</b> prejuízo estimado de ${brl(-c.lucro)}. Empata com lance de ${brl(c.equilibrio)}.`;
+    : `⛔ <b>Não vale a pena:</b> prejuízo estimado de ${brl(-c.lucro)}. Empata com lance de ${brl(c.equilibrio)}.`);
+}
+// O lance atual do leilão conta: o mínimo para entrar é o maior lance + o incremento.
+function linhaLanceAtual(c, l) {
+  if (!l || l.maior_lance == null || c.lance_maximo_lucrativo == null) return "";
+  const minimo = c.lance, folga = c.lance_maximo_lucrativo - minimo;
+  const base = `Lance atual <b>${brl(l.maior_lance)}</b>${l.incremento ? ` + incremento ${brl(l.incremento)}` : ""} → para cobrir, no mínimo <b>${brl(minimo)}</b>. `;
+  return `<div style="margin-bottom:6px">💰 ${base}${folga >= 0
+    ? `Ainda cabe: você pode subir até <b>${brl(c.lance_maximo_lucrativo)}</b> (folga de ${brl(folga)}).`
+    : `<b>Já passou do seu limite</b> de ${brl(c.lance_maximo_lucrativo)} em ${brl(-folga)}: com esse preço não dá a margem mínima.`}</div>`;
 }
 
 function cardLote(l, exemplo = false) {
@@ -886,8 +987,22 @@ const loteLido = () => {
   if (!estado.loteLido?.bruto) return null;
   const L = extrairLote(estado.loteLido.bruto);
   if (!L.lote.valor_fipe && estado.loteLido.fipe) { L.lote.valor_fipe = estado.loteLido.fipe; L.lote.fipe_fonte = estado.loteLido.fipeFonte || "tabela FIPE"; L.achados.push(`FIPE (busca automática): ${brl(estado.loteLido.fipe)}`); }
+  const fi = estado.loteLido.fipeInfo;
+  if (fi) L.ficha = {"FIPE (valor)": `${brl(fi.valor)}${fi.ref ? " · ref. " + fi.ref : ""}`, "FIPE (versão)": fi.modelo, "FIPE (ano-modelo)": fi.ano + (fi.exato ? "" : " (ano mais próximo)"), ...(fi.codigo ? {"Código FIPE": fi.codigo} : {}), ...L.ficha};
+  else if (L.lote.valor_fipe) L.ficha = {"FIPE (valor)": `${brl(L.lote.valor_fipe)} · ${L.lote.fipe_fonte}`, ...L.ficha};
   return L;
 };
+function blocoConcorrencia(L) {
+  const c = L.concorrencia || {};
+  const itens = [];
+  if (c.subiu != null) itens.push(c.subiu > 0 ? `o lance já subiu ${pct(c.subiu)} sobre o inicial` : "ainda no lance inicial");
+  if (c.lances) itens.push(`${c.lances} lances`);
+  if (c.visitas) itens.push(`${Number(c.visitas).toLocaleString("pt-BR")} visitas`);
+  if (c.curtidas) itens.push(`${c.curtidas} curtidas`);
+  if (!itens.length) return "";
+  const quente = (c.visitas || 0) > 400 || (c.subiu || 0) > 15 || (c.lances || 0) > 10;
+  return `<div style="margin-top:6px">🔥 <b>Concorrência:</b> ${itens.join(" · ")}${quente ? ". <b>Lote disputado:</b> espere o preço subir até o fim; defina seu lance máximo e não passe dele." : "."}</div>`;
+}
 function blocoLoteLido() {
   const L = loteLido(); if (!L) return "";
   const cfg = CFG_LEIL(), c = contaLoteJs(L.lote, cfg), sit = situacaoLote(L.lote, c, cfg);
@@ -896,7 +1011,12 @@ function blocoLoteLido() {
     : vereditoLote(c, cfg, sit, L.lote);
   return `<div id="aviso-lote" class="aviso exemplo-aviso" style="border-left-color:${sit === "lucro" && !falta.length ? "var(--good)" : "var(--warning)"}">
     <b>Lote lido de ${esc(L.host)}</b>${L.confiavel ? "" : " ⚠️ (site fora da lista de leiloeiros conhecidos: confira a matrícula na Junta Comercial)"}: ${esc(L.lote.marca_modelo || "?")}<br>${veredito}
-    ${L.lote.alertas.length ? `<div style="margin-top:6px">⚠️ <b>Atenção:</b> ${L.lote.alertas.map(esc).join(" · ")}</div>` : ""}
+    ${L.lote.alertas.length ? `<div style="margin-top:6px">⚠️ <b>Atenção:</b><ul style="margin:4px 0 0">${L.lote.alertas.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}
+    ${L.positivos.length ? `<div style="margin-top:6px">👍 <b>Pontos a favor:</b> ${L.positivos.map(esc).join(" · ")}</div>` : ""}
+    ${blocoConcorrencia(L)}
+    ${Object.keys(L.ficha).length ? `<h3 style="margin:12px 0 6px">📋 Ficha do lote</h3><div class="conta" style="max-width:620px">${Object.entries(L.ficha).map(([k, v]) => `<span class="neg">${esc(k)}</span><span>${esc(v)}</span>`).join("")}</div>` : ""}
+    ${L.tipoProvavel ? `<p class="mini">O tipo “${esc(TIPO_LOTE[L.lote.tipo])}” foi deduzido pelo comitente (banco ou seguradora). Confirme no edital ou nas fotos (às vezes vem escrito, como “Rec. de Financ.”).</p>` : ""}
+    ${L.pares.length ? `<details style="margin-top:6px"><summary>📄 Tudo que a página informa (${L.pares.length})</summary><div class="conta" style="max-width:720px;margin-top:6px">${L.pares.map(([k, v]) => `<span class="neg">${esc(k)}</span><span>${esc(v)}</span>`).join("")}</div></details>` : ""}
     <details style="margin-top:6px"><summary>O que foi lido da página</summary><ul>${L.achados.map(a => `<li>${esc(a)}</li>`).join("") || "<li>nada reconhecido</li>"}</ul>
     <p class="mini">A leitura é automática e pode errar: confira os campos da calculadora com a página do lote. O reparo começa em R$ 0: ajuste pelo que você viu nas fotos.</p></details>
     <div class="acoes"><button class="btn" data-descartar-lido>Descartar leitura</button></div></div>`;
@@ -924,10 +1044,14 @@ function blocoCalculadora() {
         <label>Ano<input name="ano" type="number" min="1990" max="2030" placeholder="2018"></label>
         <label>Km<input name="km" type="number" min="0" placeholder="80000"></label>
         <label>Tipo do lote<select name="tipo">${tipos}</select></label>
-        <label>Lance (R$)<input name="lance_atual" type="number" min="0" step="100" required placeholder="25000"></label>
+        <label>Lance atual do leilão (R$)<input name="maior_lance" type="number" min="0" step="50" placeholder="16000"></label>
+        <label>Incremento mínimo (R$)<input name="incremento" type="number" min="0" step="50" placeholder="500"></label>
+        <label>Seu lance (R$)<input name="lance_atual" type="number" min="0" step="50" required placeholder="16500"></label>
         <label>FIPE (R$)<span style="display:flex;gap:6px"><input name="valor_fipe" type="number" min="0" step="1" required placeholder="48000"><button class="btn" type="button" data-buscar-fipe title="Buscar na Tabela FIPE">🔎</button></span></label>
         <label>Reparo estimado (R$)<input name="reparo_estimado" type="number" min="0" step="100" value="0"></label>
         <label>Débitos: IPVA, multas (R$)<input name="debitos" type="number" min="0" step="50" value="0"></label>
+        <label>Comissão do leiloeiro (%)<input name="comissao_pct" type="number" min="0" max="20" step="0.5" placeholder="5"></label>
+        <label>Despesas do leiloeiro (R$)<input name="taxas_leiloeiro" type="number" min="0" step="50" value="0"></label>
         <label>Dias para revender<input name="dias_venda" type="number" min="1" max="365" placeholder="30"></label>
         <label>Data do leilão<input name="data_leilao" type="date"></label>
         <label>Local<input name="local" placeholder="Duque de Caxias/RJ"></label>
@@ -944,7 +1068,8 @@ function lerCalc(form) {
   const num = v => v === "" || v == null ? null : Number(v);
   return {veiculo: f.veiculo, marca_modelo: f.marca_modelo.trim(), titulo: f.marca_modelo.trim(), ano: num(f.ano), km: num(f.km), tipo: f.tipo,
     lance_atual: num(f.lance_atual) || 0, valor_fipe: num(f.valor_fipe), reparo_estimado: num(f.reparo_estimado) || 0,
-    debitos: num(f.debitos) || 0, dias_venda: num(f.dias_venda),
+    debitos: num(f.debitos) || 0, dias_venda: num(f.dias_venda), comissao_pct: num(f.comissao_pct), taxas_leiloeiro: num(f.taxas_leiloeiro) || 0,
+    maior_lance: num(f.maior_lance), incremento: num(f.incremento),
     data_leilao: f.data_leilao || "", local: f.local.trim(), leiloeiro: f.leiloeiro.trim(), url: f.url.trim(), condicao: "", alertas: [],
     fipe_fonte: form.elements.valor_fipe.dataset.fonte || "você"};
 }
@@ -960,6 +1085,12 @@ function atualizarCalc() {
 document.addEventListener("input", e => {
   if (!e.target.closest?.("#calc-lote")) return;
   if (e.target.name === "valor_fipe") delete e.target.dataset.fonte;
+  // Lance atual + incremento => seu lance mínimo (se você ainda não digitou outro valor)
+  if (["maior_lance", "incremento"].includes(e.target.name)) {
+    const f = e.target.form, ml = Number(f.maior_lance.value) || 0, inc = Number(f.incremento.value) || 0, seu = f.lance_atual;
+    if (ml && (!seu.value || seu.dataset.auto === "1")) { seu.value = ml + inc; seu.dataset.auto = "1"; }
+  }
+  if (e.target.name === "lance_atual") delete e.target.dataset.auto;
   atualizarCalc();
 });
 document.addEventListener("change", e => { if (e.target.closest?.("#calc-lote")) atualizarCalc(); });
@@ -1056,7 +1187,8 @@ async function aplicarVersaoFipe(i) {
     form.elements.valor_fipe.value = Math.round(r.valor);
     form.elements.valor_fipe.dataset.fonte = `tabela FIPE ${r.ref}`.trim();
     if (estado.loteLido && !loteLidoTemFipeDaPagina()) {
-      estado.loteLido.fipe = Math.round(r.valor); estado.loteLido.fipeFonte = form.elements.valor_fipe.dataset.fonte; salvar();
+      estado.loteLido.fipe = Math.round(r.valor); estado.loteLido.fipeFonte = form.elements.valor_fipe.dataset.fonte;
+      estado.loteLido.fipeInfo = {modelo: r.modelo, ano: r.ano, ref: r.ref, codigo: r.codigo, exato: r.exato, valor: Math.round(r.valor)}; salvar();
       const av = document.getElementById("aviso-lote"); if (av) av.outerHTML = blocoLoteLido();
     }
     out.innerHTML = `✅ <b>FIPE ${brl(r.valor)}</b> · ${esc(r.modelo)} · ${esc(r.ano)}${r.exato ? "" : " <b>(ano mais próximo encontrado)</b>"}${r.ref ? " · ref. " + esc(r.ref) : ""}
