@@ -136,7 +136,7 @@ leiloes:
   ativa: true
   refazer_a_cada_horas: 20           # 1 vez por dia
   max_buscas_por_pesquisa: 4
-  lance_max: 50000                   # maior lance que você toparia dar (R$)
+  lance_max: 30000                   # maior lance que você toparia dar (R$)
   regiao: "Rio de Janeiro (RJ); aceitar também SP e MG se o lote for muito bom"
   comissao_leiloeiro_pct: 5          # padrão de mercado (paga sobre o lance)
   custos_fixos_reais: 2500           # pátio, despachante, transferência, laudo cautelar, transporte

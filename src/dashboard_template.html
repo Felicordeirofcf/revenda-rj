@@ -653,7 +653,7 @@ function contaLoteJs(l, cfg) {
   const lmax = revenda != null ? Math.round(((revenda / (1 + cfg.margem_min_pct / 100)) - custos - reparo) / (1 + cfg.comissao_leiloeiro_pct / 100) / 100) * 100 : null;
   return {lance, comissao, custos, reparo, total, fipe: l.valor_fipe, desagio_pct: desagio, revenda, lucro, margem: lucro != null ? lucro / total * 100 : null, lance_maximo_lucrativo: lmax};
 }
-const CFG_LEIL = () => ({comissao_leiloeiro_pct: 5, custos_fixos_reais: 2500, margem_min_pct: 15, lance_max: 50000,
+const CFG_LEIL = () => ({comissao_leiloeiro_pct: 5, custos_fixos_reais: 2500, margem_min_pct: 15, lance_max: 30000,
   desagio_revenda_pct: {recuperado_financiamento: 12, sinistro_pequena_monta: 25, sinistro_media_monta: 35, outro: 20}, ...(DADOS.leiloes?.config || {})});
 const EXEMPLO_LOTES = [
   {titulo: "CHEVROLET ONIX 1.0 LT 2021", marca_modelo: "Chevrolet Onix 1.0 LT", ano: 2021, km: 48000, tipo: "recuperado_financiamento",
