@@ -332,11 +332,22 @@ function aplicarFiltros(lista) {
 // abre este painel com eles no endereço (#olx=...). Nada é enviado a servidor nenhum.
 const FAVORITO_FONTE = String.raw`(()=>{try{
 if(!/(^|\.)olx\.com\.br$/.test(location.hostname)){alert('Abra uma busca da OLX primeiro e clique no favorito nela.');return}
-const el=document.getElementById('__NEXT_DATA__');if(!el){alert('Não encontrei os anúncios nesta página da OLX.');return}
-const d=JSON.parse(el.textContent);let best=[];const st=[d];
+let L=[];
+const el=document.getElementById('__NEXT_DATA__');
+if(el){try{const d=JSON.parse(el.textContent);let best=[];const st=[d];
 while(st.length){const n=st.pop();if(Array.isArray(n)){const ads=n.filter(x=>x&&typeof x==='object'&&'subject' in x&&('listId' in x||'url' in x));if(ads.length>best.length&&ads.length>=n.length/2)best=ads;n.forEach(x=>{if(x&&typeof x==='object')st.push(x)})}else if(n&&typeof n==='object'){for(const k in n){const v=n[k];if(v&&typeof v==='object')st.push(v)}}}
-if(!best.length){alert('Nenhum anúncio encontrado nesta página.');return}
-const L=best.slice(0,100).map(a=>{const ld=a.locationDetails||{};const im=(a.images||[])[0];return{t:a.subject,p:(a.priceValue!=null&&a.priceValue!=='')?a.priceValue:a.price,u:a.url||a.friendlyUrl,id:String(a.listId||a.id||''),b:ld.neighbourhood||'',c:ld.municipality||'',l:typeof a.location==='string'?a.location:'',i:a.thumbnail||(im&&(im.original||im.url))||(typeof im==='string'?im:''),d:a.date||a.origListTime||'',pr:!!a.professionalAd}});
+L=best.slice(0,100).map(a=>{const ld=a.locationDetails||{};const im=(a.images||[])[0];return{t:a.subject,p:(a.priceValue!=null&&a.priceValue!=='')?a.priceValue:a.price,u:a.url||a.friendlyUrl,id:String(a.listId||a.id||''),b:ld.neighbourhood||'',c:ld.municipality||'',l:typeof a.location==='string'?a.location:'',i:a.thumbnail||(im&&(im.original||im.url))||(typeof im==='string'?im:''),d:a.date||a.origListTime||'',pr:!!a.professionalAd}})}catch(e){}}
+if(!L.length){const vistos=new Set();
+for(const a of document.querySelectorAll('a[href]')){let u;try{u=new URL(a.href,location.href)}catch(e){continue}
+if(!/(^|\.)olx\.com\.br$/.test(u.hostname))continue;const m=u.pathname.match(/-(\d{6,})\/?$/);if(!m||vistos.has(m[1]))continue;
+let card=a;for(let k=0;k<8&&card.parentElement;k++){if(/R\$\s?\d/.test(card.innerText||''))break;card=card.parentElement}
+const txt=card.innerText||'';const pm=txt.match(/R\$\s?[\d.]+(,\d{2})?/);if(!pm)continue;vistos.add(m[1]);
+const linhas=txt.split('\n').map(x=>x.trim()).filter(Boolean);
+const tit=(a.getAttribute('title')||(card.querySelector('h2,h3')||{}).innerText||(card.querySelector('img[alt]')||{}).alt||linhas.find(x=>!/R\$/.test(x))||'').trim();
+const loc=linhas.find(x=>/^[A-ZÀ-Ú][^,]{2,40},\s*[^,]{2,50}$/.test(x)&&!/R\$|hoje|ontem|\d{1,2}:\d{2}/i.test(x))||'';
+const img=card.querySelector('img');const isrc=img?(img.currentSrc||img.src||img.getAttribute('data-src')||''):'';
+const pp=loc.split(',');L.push({t:tit,p:pm[0],u:u.origin+u.pathname,id:m[1],c:(pp[0]||'').trim(),b:(pp[1]||'').trim(),l:'',i:/^https?:/.test(isrc)?isrc:'',d:'',pr:/profissional|loja/i.test(txt)});if(L.length>=100)break}}
+if(!L.length){alert('Não encontrei anúncios nesta página. Abra uma página de RESULTADOS de busca da OLX (ex.: pesquise "iphone 13" ou use os botões do painel), espere carregar e clique de novo.');return}
 const j=JSON.stringify({v:1,q:location.href,em:Date.now(),a:L});
 const b=btoa(unescape(encodeURIComponent(j))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const u='__PAINEL__#olx='+b;const w=window.open(u,'_blank');if(!w)location.href=u;
