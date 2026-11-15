@@ -90,17 +90,40 @@ Regras:
 """
 
 
+# Busca com filtragem dinâmica (mais precisa) só existe nos modelos maiores; nos demais, a básica.
+PREFIXOS_BUSCA_DINAMICA = ("claude-sonnet", "claude-opus", "claude-fable", "claude-mythos")
+
+
+def tipo_busca(modelo: str) -> str:
+    return "web_search_20260209" if modelo.startswith(PREFIXOS_BUSCA_DINAMICA) else "web_search_20250305"
+
+
 class PesquisadorWeb:
-    def __init__(self, client: anthropic.Anthropic, modelo: str, effort: str = "low", max_buscas: int = 4):
+    def __init__(self, client: anthropic.Anthropic, modelo: str, effort: str = "low", max_buscas: int = 4,
+                 modelo_reserva: str | None = None):
         self.client = client
         self.modelo = modelo
         self.effort = effort
         self.max_buscas = max_buscas
+        # Se o modelo principal (barato) recusar a busca com erro 400, passa para este e não volta mais.
+        self.modelo_reserva = modelo_reserva
 
     def _pesquisar(self, pedido: str, schema: dict[str, Any], descricao_tool: str,
                    dominios: list[str] | None = None) -> tuple[dict[str, Any], UsoTokens]:
+        try:
+            return self._pesquisar_com(self.modelo, pedido, schema, descricao_tool, dominios)
+        except IAError as exc:
+            reserva = self.modelo_reserva
+            if not reserva or reserva == self.modelo or "(400)" not in str(exc):
+                raise
+            log.warning("Pesquisa web com %s falhou (%s); usando %s daqui em diante.", self.modelo, exc, reserva)
+            self.modelo = reserva
+            return self._pesquisar_com(reserva, pedido, schema, descricao_tool, dominios)
+
+    def _pesquisar_com(self, modelo: str, pedido: str, schema: dict[str, Any], descricao_tool: str,
+                       dominios: list[str] | None = None) -> tuple[dict[str, Any], UsoTokens]:
         busca: dict[str, Any] = {
-            "type": "web_search_20260209",
+            "type": tipo_busca(modelo),
             "name": "web_search",
             "max_uses": self.max_buscas,
             "user_location": {"type": "approximate", "city": "Rio de Janeiro", "region": "Rio de Janeiro",
@@ -114,7 +137,7 @@ class PesquisadorWeb:
         for _ in range(MAX_CONTINUACOES + 1):
             resp = criar_mensagem(
                 self.client,
-                model=self.modelo,
+                model=modelo,
                 max_tokens=16000,
                 system=INSTRUCOES,
                 tools=tools,
@@ -123,7 +146,7 @@ class PesquisadorWeb:
                 output_config={"effort": self.effort},
                 messages=mensagens,
             )
-            uso.somar(calcular_uso(self.modelo, resp.usage))
+            uso.somar(calcular_uso(modelo, resp.usage))
             if resp.stop_reason == "pause_turn":
                 mensagens.append({"role": "assistant", "content": resp.content})
                 continue

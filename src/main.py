@@ -191,8 +191,9 @@ class Robo:
         if self.gasto_mes(s, quando) >= teto:
             self.erro(f"[web] teto mensal de US$ {teto:.2f} atingido; pesquisas pausadas até o próximo mês.")
             return
-        pesq = PesquisadorWeb(self.client, cfg.get("modelo", "claude-sonnet-5-5"), cfg.get("effort", "low"),
-                              int(cfg.get("max_buscas_por_pesquisa", 4)))
+        reserva = cfg.get("modelo_reserva")
+        pesq = PesquisadorWeb(self.client, cfg.get("modelo", "claude-haiku-5-5"), cfg.get("effort", "low"),
+                              int(cfg.get("max_buscas_por_pesquisa", 2)), modelo_reserva=reserva)
 
         def vencido(tipo: str, alvo: str, intervalo: timedelta) -> bool:
             ultima = self.db.ultima_pesquisa(s, tipo, alvo)
@@ -223,8 +224,8 @@ class Robo:
             revenda = precos_de_revenda(self.catalogo, self.referencias, produtos_web, self.regras)
             tetos = tetos_de_compra(self.catalogo, revenda, self.regras)
             if tetos and vencido("promocoes", "geral", intervalo):
-                pesq_promo = PesquisadorWeb(self.client, cfg.get("modelo", "claude-sonnet-5-5"), cfg.get("effort", "low"),
-                                            int(promo.get("max_buscas_por_pesquisa", 6)))
+                pesq_promo = PesquisadorWeb(self.client, pesq.modelo, cfg.get("effort", "low"),
+                                            int(promo.get("max_buscas_por_pesquisa", 3)), modelo_reserva=reserva)
                 dominios = list(promo.get("lojas_confiaveis") or []) + list(promo.get("sites_de_promocao") or [])
                 hoje_ = quando.astimezone(timezone(timedelta(hours=-3))).date().isoformat()
                 registrar("promocoes", "geral", lambda: pesq_promo.promocoes(tetos, hoje_, dominios))

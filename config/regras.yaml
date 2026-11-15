@@ -77,28 +77,31 @@ ia:
   effort: "low"
   max_analises_por_execucao: 40
 
-# Pesquisa na web com o Claude (busca da Anthropic, ~US$ 0,01 por busca + tokens).
+# Pesquisa na web com o Claude (busca da Anthropic: US$ 0,01 por busca + tokens das páginas lidas).
 # Traz o preço NOVO de cada produto em lojas (teto de revenda e "melhores ofertas") e passagens aéreas.
+# MODO ECONÔMICO: Haiku 5.5 (~20x mais barato por token que o Sonnet). Se a API recusar a busca
+# com o Haiku, o robô passa sozinho para o modelo_reserva.
 pesquisa_web:
   ativa: true
-  modelo: "claude-sonnet-5-5"
+  modelo: "claude-haiku-5-5"
+  modelo_reserva: "claude-sonnet-5-5"
   effort: "low"
-  max_buscas_por_pesquisa: 3
+  max_buscas_por_pesquisa: 2
   produtos:
-    refazer_a_cada_dias: 7          # cada produto é pesquisado de novo a cada N dias
-    max_por_execucao: 3             # espalha o custo ao longo das execuções
+    refazer_a_cada_dias: 14         # preço de novo muda devagar
+    max_por_execucao: 2
   passagens:
-    refazer_a_cada_horas: 20        # ~1 vez por dia por rota
-    max_por_execucao: 3
-  # Teto mensal estimado (US$). Se o gasto do mês passar disso, as pesquisas param até o mês virar.
+    refazer_a_cada_horas: 22        # 1 vez por dia por rota
+    max_por_execucao: 2
+  # Teto mensal (US$). Se o gasto do mês passar disso, as pesquisas param até o mês virar.
   teto_mensal_usd: 25
 
 # Caçador de promoções: o Claude procura o catálogo em promoção em LOJAS CONFIÁVEIS e o robô
 # compara com o preço de revenda (mediana dos usados no Rio). Só aparece o que dá lucro.
 promocoes:
   ativa: true
-  refazer_a_cada_horas: 6            # ~3 a 4 vezes por dia (das 7h às 23h)
-  max_buscas_por_pesquisa: 6
+  refazer_a_cada_horas: 12           # 2 vezes por dia
+  max_buscas_por_pesquisa: 3
   # Comprar novo e revender: quem compra lacrado aceita pagar perto da mediana dos usados ou mais.
   # Usamos a mediana dos usados como preço de revenda (conservador).
   # Só são aceitos links destes sites (subdomínios incluídos). O resto é descartado no código.

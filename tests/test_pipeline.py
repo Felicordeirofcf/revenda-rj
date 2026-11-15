@@ -96,7 +96,7 @@ def test_pipeline_completo(tmp_path, regras, catalogo, passagens):
         assert por_id(5).situacao == "normal" and por_id(5).motivo_situacao == "anúncio de loja"
         golpe = por_id(6)
         assert golpe.situacao == "descartado" and golpe.motivo_situacao.startswith("IA:")
-        assert s.query(PesquisaDB).filter_by(tipo="produto").count() == 3      # max_por_execucao
+        assert s.query(PesquisaDB).filter_by(tipo="produto").count() == 2      # max_por_execucao
         assert s.query(PesquisaDB).filter_by(tipo="passagem").count() == 2
         assert s.query(PesquisaDB).filter_by(tipo="promocoes").count() == 1  # caçador de promoções
     assert ex.oportunidades == 1 and ex.novas_oportunidades == 1 and ex.custo_usd > 0
@@ -111,8 +111,8 @@ def test_pipeline_completo(tmp_path, regras, catalogo, passagens):
     ex2 = robo.executar()
     assert ex2.analises_ia == 0 and ex2.novas_oportunidades == 0
     novas = todas[n:]
-    # Só as próximas 3 pesquisas de produto (as passagens ainda não venceram; triagem não repete).
-    assert len(novas) == 3 and all(c["model"] == "claude-sonnet-5-5" for c in novas)
+    # Só as próximas 2 pesquisas de produto (as passagens ainda não venceram; triagem não repete).
+    assert len(novas) == 2 and all(c["model"] == "claude-haiku-5-5" for c in novas)
     assert all("ofertas" in c["tools"][-1]["input_schema"]["properties"] for c in novas)
     gerar = gerar_dashboard(db, regras, catalogo, passagens, tmp_path / "index.html")
     html = gerar.read_text()
