@@ -1,4 +1,7 @@
 ﻿# Roda o robô uma vez e envia banco + painel para o GitHub. Chamado pelo Agendador de Tarefas.
+# Para acompanhar ao vivo:   powershell -ExecutionPolicy Bypass -File windows\rodar.ps1 -AoVivo
+# Forçar leilões agora:      powershell -ExecutionPolicy Bypass -File windows\rodar.ps1 -AoVivo -ForcarLeiloes
+param([switch]$AoVivo, [switch]$ForcarLeiloes)
 $ErrorActionPreference = "Continue"
 $raiz = Split-Path -Parent $PSScriptRoot
 Set-Location $raiz
@@ -20,7 +23,14 @@ if ($LASTEXITCODE -ne 0) { git rebase --abort 2>$null; Write-Host "Aviso: não c
 
 # Saída do Python vai para um log próprio (o Transcript do PowerShell 5 não captura programas externos).
 $logPy = "logs\python-$(Get-Date -Format 'yyyy-MM-dd').log"
-cmd /c ".venv\Scripts\python.exe -m src.main >> $logPy 2>&1"   # caminho relativo e sem espaços
+$extra = ""
+if ($ForcarLeiloes) { $extra = "--forcar-leiloes" }
+if ($AoVivo) {
+    # Mostra tudo na tela enquanto roda (e também grava no log).
+    cmd /c ".venv\Scripts\python.exe -m src.main $extra 2>&1" | Tee-Object -FilePath $logPy -Append
+} else {
+    cmd /c ".venv\Scripts\python.exe -m src.main $extra >> $logPy 2>&1"   # caminho relativo e sem espaços
+}
 $codigo = $LASTEXITCODE
 Write-Host "Robô terminou com código $codigo (detalhes em $logPy)"
 
