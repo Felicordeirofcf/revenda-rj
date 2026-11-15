@@ -174,6 +174,7 @@ def montar_dados(db: Database, regras: dict, catalogo: Catalogo, passagens: dict
         "passagens": rotas,
         "promocoes": promocoes,
         "leiloes": leiloes,
+        "leilao_produtos": regras.get("leilao_produtos") or {},
         # Para a "Análise OLX" (favorito): o painel classifica no navegador os anúncios que o usuário trouxe.
         "analise_olx": {
             "catalogo": [{"id": i.id, "nome": i.nome, "categoria": i.categoria, "padrao": i.padrao.pattern,

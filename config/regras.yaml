@@ -172,3 +172,14 @@ leiloes:
     - mgl.com.br
   # Só para consultar o valor FIPE (o link do lote precisa ser de um leiloeiro da lista acima).
   sites_consulta: ["veiculos.fipe.org.br", "fipe.org.br"]
+
+# Leilão de PRODUTOS (notebooks, celulares, eletrônicos...): usado pela calculadora da aba "Leilão de produtos".
+leilao_produtos:
+  comissao_leiloeiro_pct: 5
+  desconto_negociacao_pct: 7       # quem compra de você pechincha
+  defeito_pct: 15                  # "vendido no estado": % de unidades que podem vir com defeito
+  transporte_reais: 150            # retirada no pátio (mais se for fora do RJ)
+  taxa_venda_pct: 0                # 0 vendendo na OLX/Facebook; ~13 no Mercado Livre
+  dias_para_vender: 30
+  margem_min_pct: 25               # produto de leilão é mais arriscado que veículo
+  pessimista: {preco_menor_pct: 15, defeito_extra_pct: 15}

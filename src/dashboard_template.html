@@ -446,7 +446,8 @@ const meta=n=>{const m=document.querySelector('meta[property="'+n+'"],meta[name=
 const txt=(document.body.innerText||'').replace(/\t+/g,' | ').replace(/ +/g,' ').replace(/\n\s*\n+/g,'\n').slice(0,20000);
 if(txt.length<200){alert('Esta página ainda não carregou o lote. Espere carregar e clique de novo.');return}
 const h1=[...document.querySelectorAll('h1,h2')].map(e=>(e.innerText||'').trim()).filter(t=>t.length>3&&t.length<160).slice(0,4);
-abrir('__PAINEL__#lote='+enc({v:1,u:location.href,h:location.hostname,t:document.title,ot:meta('og:title'),od:meta('og:description')||meta('description'),oi:meta('og:image'),h1:h1,x:txt}));return}
+const lk=[...document.querySelectorAll('a[href]')].map(a=>({t:(a.innerText||'').replace(/\s+/g,' ').trim().slice(0,160),u:a.href})).filter(o=>o.t.length>8&&/^https?:/.test(o.u)).slice(0,250);
+abrir('__PAINEL__#lote='+enc({v:1,u:location.href,h:location.hostname,t:document.title,ot:meta('og:title'),od:meta('og:description')||meta('description'),oi:meta('og:image'),h1:h1,lk:lk,x:txt}));return}
 let L=[];
 const el=document.getElementById('__NEXT_DATA__');
 if(el){try{const d=JSON.parse(el.textContent);let best=[];const st=[d];
@@ -741,7 +742,7 @@ function extrairLote(p) {
   const alertas = [], positivos = [];
   if (/sem\s*chave/i.test(lx)) alertas.push("Sem chave");
   if (/n[ãa]o\s*(?:liga|funciona|d[áa]\s*partida)|motor\s*(?:fundido|travado|batido)/i.test(lx)) alertas.push("Não liga / problema de motor");
-  if (/mec[âa]nica\s*sem\s*teste|vendido\s*no\s*estado|sem\s*garantia/i.test(lx)) alertas.push("Vendido no estado: mecânica sem teste e sem garantia (avalie na visitação)");
+  if (/mec[âa]nica\s*sem\s*teste|vendido\s*no\s*estado|sem\s*garantia/i.test(lx)) alertas.push("Vendido no estado: sem teste e sem garantia (avalie na visitação)");
   if (/condicional|sujeit[oa]\s*[àa]\s*aprova[çc][ãa]o|an[áa]lise\s*do\s*banco/i.test(lx)) alertas.push("Venda condicional: o comitente (banco) pode recusar o lance");
   if (/d[ée]bitos?\s*(?:por\s*conta|de\s*responsabilidade)\s*do\s*arrematante/i.test(lx)) alertas.push("Débitos por conta do arrematante (ver edital)");
   if (/alagad|enchente|submers/i.test(lx)) alertas.push("Possível veículo alagado");
@@ -779,9 +780,9 @@ function extrairLote(p) {
 (function receberLote() {
   if (!location.hash.startsWith("#lote=")) return;
   // Guarda o texto bruto; a extração roda na hora de mostrar (as tabelas de leiloeiros são definidas mais abaixo).
-  try { estado.loteLido = {bruto: decodificarHash(location.hash.slice(6)), em: Date.now()}; salvar(); }
+  try { estado.loteRecebido = {bruto: decodificarHash(location.hash.slice(6)), em: Date.now()}; salvar(); }
   catch (e) { alert("Não consegui ler o lote: " + e.message); }
-  history.replaceState(null, "", location.pathname + "#leiloes");
+  history.replaceState(null, "", location.pathname + "#lote");
 })();
 
 // Recebe os anúncios vindos do favorito (#olx=...) e guarda neste navegador.
@@ -812,7 +813,7 @@ function blocoInstalarFavorito() {
     <ol class="muted" style="margin:0;padding-left:18px;line-height:2.4">
       <li>Mostre a barra de favoritos do navegador (<b>Ctrl+Shift+B</b> no Chrome/Edge).</li>
       <li><b>Arraste</b> este botão para a barra: <a class="btn primario" href="${linkFavorito()}" onclick="alert('Não clique aqui: ARRASTE este botão para a barra de favoritos.');return false;">📥 Analisar no Revenda RJ</a></li>
-      <li>Na OLX: abra uma busca e, com os anúncios na tela, clique no favorito. Num <b>lote de leilão</b>: abra a página do lote e clique no favorito.</li>
+      <li>Na OLX: abra uma busca e, com os anúncios na tela, clique no favorito. Num <b>lote de leilão</b> (veículo ou produto) ou numa lista de lotes: abra a página e clique no favorito.</li>
     </ol>
     <p class="mini" style="margin:8px 0 0">O favorito só lê os anúncios que já estão na sua tela e abre este painel com eles. Nada é enviado a servidor algum. A análise da IA (risco, perguntas) não roda aqui; a conta de lucro sim.</p>
   </div>`;
@@ -1091,14 +1092,14 @@ function blocoCalculadora() {
         <label>Ano<input name="ano" type="number" min="1990" max="2030" placeholder="2018"></label>
         <label>Km<input name="km" type="number" min="0" placeholder="80000"></label>
         <label>Tipo do lote<select name="tipo">${tipos}</select></label>
-        <label>Lance atual do leilão (R$)<input name="maior_lance" type="number" min="0" step="50" placeholder="16000"></label>
-        <label>Incremento mínimo (R$)<input name="incremento" type="number" min="0" step="50" placeholder="500"></label>
-        <label>Seu lance (R$)<input name="lance_atual" type="number" min="0" step="50" required placeholder="16500"></label>
-        <label>FIPE (R$)<span style="display:flex;gap:6px"><input name="valor_fipe" type="number" min="0" step="1" required placeholder="48000"><button class="btn" type="button" data-buscar-fipe title="Buscar na Tabela FIPE">🔎</button></span></label>
-        <label>Reparo estimado (R$)<input name="reparo_estimado" type="number" min="0" step="100" value="0"></label>
-        <label>Débitos: IPVA, multas (R$)<input name="debitos" type="number" min="0" step="50" value="0"></label>
-        <label>Comissão do leiloeiro (%)<input name="comissao_pct" type="number" min="0" max="20" step="0.5" placeholder="5"></label>
-        <label>Despesas do leiloeiro (R$)<input name="taxas_leiloeiro" type="number" min="0" step="50" value="0"></label>
+        <label>Lance atual do leilão (R$)<input name="maior_lance" type="number" min="0" step="any" placeholder="16000"></label>
+        <label>Incremento mínimo (R$)<input name="incremento" type="number" min="0" step="any" placeholder="500"></label>
+        <label>Seu lance (R$)<input name="lance_atual" type="number" min="0" step="any" required placeholder="16500"></label>
+        <label>FIPE (R$)<span style="display:flex;gap:6px"><input name="valor_fipe" type="number" min="0" step="any" required placeholder="48000"><button class="btn" type="button" data-buscar-fipe title="Buscar na Tabela FIPE">🔎</button></span></label>
+        <label>Reparo estimado (R$)<input name="reparo_estimado" type="number" min="0" step="any" value="0"></label>
+        <label>Débitos: IPVA, multas (R$)<input name="debitos" type="number" min="0" step="any" value="0"></label>
+        <label>Comissão do leiloeiro (%)<input name="comissao_pct" type="number" min="0" max="20" step="any" placeholder="5"></label>
+        <label>Despesas do leiloeiro (R$)<input name="taxas_leiloeiro" type="number" min="0" step="any" value="0"></label>
         <label>Dias para revender<input name="dias_venda" type="number" min="1" max="365" placeholder="30"></label>
         <label>Data do leilão<input name="data_leilao" type="date"></label>
         <label>Local<input name="local" placeholder="Duque de Caxias/RJ"></label>
@@ -1269,6 +1270,275 @@ document.addEventListener("change", e => {
 });
 document.addEventListener("click", e => { if (e.target.closest("[data-buscar-fipe]")) { e.preventDefault(); buscarFipe(); } });
 
+
+// ---------------------------------------------------------------- leilão de PRODUTOS (notebooks, celulares, eletrônicos...)
+const CFG_PROD = () => ({comissao_leiloeiro_pct: 5, desconto_negociacao_pct: 7, defeito_pct: 15, transporte_reais: 150, taxa_venda_pct: 0,
+  dias_para_vender: 30, margem_min_pct: 25, pessimista: {preco_menor_pct: 15, defeito_extra_pct: 15}, ...(DADOS.leilao_produtos || {})});
+const VALOR_DEFEITO = 0.3;  // unidade com defeito vende por ~30% do preço (peças / no estado)
+const MARCAS_AMBIGUAS = new Set(["ram", "mini", "land", "royal", "gm"]);  // "16GB RAM", "mini system"...
+const PRODUTO_RE = /\b(notebooks?|laptops?|macbook|celulares?|smartphones?|iphones?|tablets?|ipads?|monitor(?:es)?|tvs?|televisor(?:es)?|impressoras?|computador(?:es)?|cpus?|servidor(?:es)?|geladeiras?|fog[aã]o|maquinas?|ferramentas?|consoles?|playstation|xbox|cameras?|drones?|lote\s*com|processador|ssd|gb\s*ram)\b/;
+function ehVeiculo(L) {
+  const nome = normalizar(L.lote.marca_modelo || "") + " " + normalizar(L.lote.condicao || "");
+  const docVeiculo = /\bplaca\b|renavam|chassi|ano\s*fab|quilometragem/.test(nome);
+  if (PRODUTO_RE.test(nome) && !docVeiculo) return false;
+  const marca = MARCAS_VEICULO.some(m => !MARCAS_AMBIGUAS.has(m) && new RegExp(`\\b${m}\\b`).test(nome));
+  return L.lote.veiculo === "moto" || marca || MODELOS_CONHECIDOS.test(nome) || docVeiculo;
+}
+function termoBusca(desc) {
+  const corta = normalizar(desc).replace(/\([^)]*\)/g, " ").replace(/\blote\s*(?:com|de)?\s*\d+\b/g, " ").replace(/\b\d+\s*(?:unidades?|un|pecas?|itens)\b/g, " ")
+    .replace(/\b(processador|memoria|com|de|da|do|e|a|o|os|as|usado|usados|vendido|estado|lote|unidade|unidades)\b/g, " ").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  return corta.split(" ").filter(w => w.length > 1 && !/^\d{5,}$/.test(w)).slice(0, 7).join(" ");
+}
+function extrairProduto(p) {
+  const L = extrairLote(p), x = (p.x || "").replace(/ /g, " ");
+  const cands = [...(p.h1 || []), L.lote.titulo, p.ot, (p.od || "")].filter(Boolean);
+  const desc = (cands.find(c => /lote\s*com|unidades?|\b(notebook|celular|smartphone|iphone|tablet|monitor|tv|televisor|impressora|computador|cpu|servidor|ar\s*condicionado|geladeira|fog[ãa]o|m[áa]quina|ferramenta|bicicleta|console|playstation|xbox|c[âa]mera|drone)/i.test(c)) || cands[0] || "").replace(/\s+/g, " ").trim();
+  const q = (desc.match(/lote\s*(?:com|de)\s*(\d{1,4})/i) || desc.match(/\b(\d{1,4})\s*(?:unidades?|un\.?|p[çc]s|pe[çc]as|itens)\b/i)
+    || desc.match(/\b(\d{1,3})\s+(?:notebooks?|celulares?|smartphones?|iphones?|monitores?|tablets?|impressoras?|computadores?|cpus?|tvs?|televisores?|aparelhos?)\b/i) || [])[1];
+  const spec = [];
+  const cpu = desc.match(/core\s*i[3579](?:[\s-]*\d{4,5}\w?)?|ryzen\s*\d(?:\s*\d{4}\w?)?|\bm[123](?:\s*(?:pro|max))?\b|celeron|pentium|xeon/i); if (cpu) spec.push(cpu[0].toUpperCase());
+  const ram = desc.match(/(\d{1,3})\s*gb\s*(?:de\s*)?(?:ram|mem[óo]ria)/i); if (ram) spec.push(ram[1] + "GB RAM");
+  const sto = desc.match(/(\d{3,4})\s*gb\s*(ssd|hd|nvme)|(\d)\s*tb/i); if (sto) spec.push(sto[0].toUpperCase());
+  const cl = classificarOlx(desc, 999999);
+  const sugestao = cl.item && AO.revenda[cl.item.id] ? {preco: Math.round(AO.revenda[cl.item.id].mediana), nome: cl.item.nome, fonte: AO.revenda[cl.item.id].fonte} : null;
+  const foraRJ = /\b(SP|MG|ES|PR|SC|GO|DF|BA)\b/.test(L.lote.local || "") || /s[ãa]o paulo|santa b[áa]rbara|campinas|osasco|barueri|guarulhos/i.test(L.lote.local + " " + x.slice(0, 3000));
+  const alertas = [...L.lote.alertas];
+  // (o aviso de retirada fora do RJ entra depois de saber se há entrega)
+  const lista = extrairListaLotes(p);
+  // Entrega: o leiloeiro envia? Com que frete?
+  const lxp = x.toLowerCase();
+  const freteM = x.match(/(?:frete|entrega|envio|transporte)\s*(?:\(?\s*estimad[oa]\s*\)?)?\s*[:|]?[^\n]{0,30}?R\$\s*([\d.]+(?:,\d{2})?)/i);
+  const temEntrega = !!freteM || /envio\s*(?:pelos\s*)?correios|enviamos|entregamos|entrega\s*(?:em\s*todo|para\s*todo|a\s*domic[ií]lio|dispon[ií]vel)|frete\s*gr[áa]tis|calcul(?:e|ar)\s*(?:o\s*)?frete|transportadora\s*parceira/i.test(lxp);
+  const freteGratis = /frete\s*gr[áa]tis/i.test(lxp);
+  const somenteRetirada = /somente\s*retirada|n[ãa]o\s*(?:fazemos|realizamos|h[áa])\s*(?:entrega|envio)|retirada\s*obrigat[óo]ria/i.test(lxp);
+  const entrega = somenteRetirada ? {modo: "retirada"} : temEntrega ? {modo: "entrega", frete: freteGratis ? 0 : freteM ? numBR(freteM[1]) : null, gratis: freteGratis} : {modo: "retirada"};
+  if (entrega.modo === "entrega") L.positivos.push(entrega.gratis ? "Frete grátis" : entrega.frete != null ? `Leiloeiro entrega (frete ${brl(entrega.frete)})` : "Leiloeiro entrega (calcule o frete no site)");
+  if (somenteRetirada) alertas.push("Somente retirada no local (sem entrega)");
+  if (foraRJ && entrega.modo === "retirada") alertas.push("Retirada fora do RJ: inclua a viagem ou um frete contratado no transporte");
+  return {...L, entrega, desc, quantidade: q ? Number(q) : 1, quantidadeLida: !!q, spec, termo: termoBusca(desc), sugestao, foraRJ, alertas, lista};
+}
+// Página de LISTA de lotes (vários "Maior lance" na tela)
+function extrairListaLotes(p) {
+  const x = (p.x || "").replace(/ /g, " ");
+  if ((x.match(/maior\s*lance|lance\s*atual|lance\s*inicial/gi) || []).length < 3) return [];
+  const linhas = x.split("\n").map(l => l.trim()).filter(Boolean), lotes = [];
+  for (let i = 0; i < linhas.length; i++) {
+    if (!/^R\$\s*[\d.]+(?:,\d{2})?$/.test(linhas[i]) || !/maior\s*lance|lance\s*(?:atual|inicial)/i.test(linhas[i + 1] || "")) continue;
+    let desc = "", num = "", data = "";
+    for (let k = i - 1; k >= Math.max(0, i - 8); k--) {
+      const l = linhas[k];
+      if (!data && /\d{2}\/\d{2}\/\d{4}/.test(l)) { data = l; continue; }
+      if (/^\d{2,4}$/.test(l)) { num = l; break; }
+      if (!desc && l.length > 12 && !/R\$/.test(l)) desc = l;
+    }
+    if (!desc) continue;
+    const link = (p.lk || []).find(o => o.t.includes(desc.slice(0, 25)) || (num && new RegExp(`\\b${num}\\b`).test(o.t) && o.t.length < 400));
+    lotes.push({num, desc, data, valor: numBR(linhas[i]), rotulo: linhas[i + 1], u: link ? link.u : null, estado: /vendido\s*no\s*estado/i.test(linhas[i + 2] || "") ? "vendido no estado" : ""});
+  }
+  return lotes.slice(0, 60);
+}
+function contaProd(d, cfg) {
+  const q = Math.max(1, Number(d.quantidade) || 1), P = Number(d.preco_unit) || 0;
+  const c = (d.comissao_pct != null && d.comissao_pct !== "" ? Number(d.comissao_pct) : cfg.comissao_leiloeiro_pct) / 100;
+  const lance = Number(d.lance) || 0, comissao = lance * c, desp = Number(d.despesas) || 0, transp = d.transporte != null && d.transporte !== "" ? Number(d.transporte) : cfg.transporte_reais;
+  const reparo = (Number(d.reparo_unit) || 0) * q, def = (d.defeito_pct != null && d.defeito_pct !== "" ? Number(d.defeito_pct) : cfg.defeito_pct) / 100;
+  const neg = cfg.desconto_negociacao_pct / 100, taxa = (d.taxa_venda_pct != null && d.taxa_venda_pct !== "" ? Number(d.taxa_venda_pct) : cfg.taxa_venda_pct) / 100;
+  const fator = (dd, pp) => q * ((1 - dd) * pp + dd * pp * VALOR_DEFEITO) * (1 - neg) * (1 - taxa);
+  const receita = fator(def, P), fixos = desp + transp + reparo, total = lance + comissao + fixos;
+  const lucro = P ? receita - total : null, margem = lucro != null && total ? lucro / total * 100 : null;
+  const dias = Number(d.dias) || cfg.dias_para_vender, arred = v => Math.max(0, Math.round(v / 50) * 50);
+  const pess = cfg.pessimista || {};
+  const receitaPess = fator(Math.min(1, def + (pess.defeito_extra_pct ?? 15) / 100), P * (1 - (pess.preco_menor_pct ?? 15) / 100));
+  return {q, P, lance, comissao, comissao_pct: c * 100, desp, transp, reparo, def: def * 100, receita, total, lucro, margem,
+    custo_unit: total / q, empate_unit: P ? total / (fator(def, 1)) : null, dias, roi_mes: margem != null ? margem * 30 / Math.max(dias, 1) : null,
+    lance_max: P ? arred((receita / (1 + cfg.margem_min_pct / 100) - fixos) / (1 + c)) : null, empate: P ? arred((receita - fixos) / (1 + c)) : null,
+    lucro_pess: P ? receitaPess - total : null, neg: neg * 100, taxa: taxa * 100, entrega: d.entrega};
+}
+function situacaoProd(c, cfg) {
+  if (!c.P) return "sem_preco";
+  if (c.margem >= cfg.margem_min_pct) return c.lucro_pess > 0 ? "lucro" : "arriscado";
+  return c.margem > 0 ? "apertado" : "prejuizo";
+}
+function painelProd(c, cfg) {
+  const s = v => v == null ? "—" : (v >= 0 ? "+" : "") + brl(v), L = (r, v, cls = "") => `<span class="neg">${r}</span><span class="${cls}">${v}</span>`;
+  return `<div class="conta">
+    ${L("lance", brl(c.lance))}${L(`comissão ${String(c.comissao_pct).replace(".", ",")}%`, brl(c.comissao))}${c.desp ? L("despesas do leiloeiro", brl(c.desp)) : ""}
+    ${L(c.entrega === "entrega" ? "frete de entrega" : "transporte / retirada", brl(c.transp))}${c.reparo ? L("reparo / limpeza (todas as unidades)", brl(c.reparo)) : ""}
+    ${L("<b>capital necessário</b>", brl(c.total), "tot")}${L(`custo por unidade (${c.q} un.)`, brl(c.custo_unit))}
+    ${L(`revenda: ${c.q} × ${brl(c.P)}, ${Math.round(c.def)}% com defeito, −${Math.round(c.neg)}% negociação${c.taxa ? `, −${Math.round(c.taxa)}% taxa` : ""}`, brl(c.receita))}
+    ${L("<b>lucro estimado</b>", s(c.lucro) + (c.margem != null ? ` (${pct(c.margem)})` : ""), "tot")}
+    ${L(`retorno ao mês (vende em ~${c.dias} dias)`, c.roi_mes != null ? pct(c.roi_mes) : "—")}
+    ${L(`cenário pessimista (preço −${(cfg.pessimista || {}).preco_menor_pct ?? 15}%, +${(cfg.pessimista || {}).defeito_extra_pct ?? 15}% defeito)`, s(c.lucro_pess), c.lucro_pess < 0 ? "lucro neg" : "")}
+    ${L("preço mínimo de venda por unidade (empate)", brl(c.empate_unit))}
+    ${L("lance de empate (lucro zero)", brl(c.empate))}${L(`<b>lance máximo para ${cfg.margem_min_pct}%</b>`, brl(c.lance_max), "tot")}
+  </div>`;
+}
+function vereditoProd(c, cfg, sit, d) {
+  let lanceInfo = "";
+  if (d && d.maior_lance && c.lance_max != null) {
+    const folga = c.lance_max - c.lance;
+    lanceInfo = `<div style="margin-bottom:6px">💰 Lance atual <b>${brl(d.maior_lance)}</b>${d.incremento ? ` + incremento ${brl(d.incremento)}` : ""} → para cobrir, <b>${brl(c.lance)}</b>. ${folga >= 0 ? `Ainda cabe: suba até <b>${brl(c.lance_max)}</b> (folga de ${brl(folga)}).` : `<b>Já passou do seu limite</b> de ${brl(c.lance_max)} em ${brl(-folga)}.`}</div>`;
+  }
+  return lanceInfo + (sit === "sem_preco" ? `ℹ️ Informe o <b>preço de revenda por unidade</b> (veja na OLX/Mercado Livre pelos botões) para ver se vale a pena.`
+    : sit === "lucro" ? `✅ <b>Vale a pena:</b> lucro de ${brl(c.lucro)} (${pct(c.margem)}), ~${pct(c.roi_mes)} ao mês; ainda lucra ${brl(c.lucro_pess)} no pessimista. Cada unidade sai por ${brl(c.custo_unit)}; empata vendendo a ${brl(c.empate_unit)}. Não passe de <b>${brl(c.lance_max)}</b> de lance.`
+    : sit === "arriscado" ? `⚠️ <b>Lucro, mas arriscado:</b> ${brl(c.lucro)} (${pct(c.margem)}) no normal, <b>prejuízo de ${brl(-c.lucro_pess)}</b> se vier muita unidade com defeito ou o preço cair. Lance bem abaixo de ${brl(c.lance_max)}.`
+    : sit === "apertado" ? `⚠️ <b>Margem apertada</b> (${pct(c.margem)}): para produto de leilão o ideal é ${cfg.margem_min_pct}%+. Só com lance até <b>${brl(c.lance_max)}</b>.`
+    : `⛔ <b>Não vale a pena:</b> prejuízo de ${brl(-c.lucro)}. Cada unidade custa ${brl(c.custo_unit)} e você precisaria vender a ${brl(c.empate_unit)} só para empatar.`);
+}
+const EXEMPLO_PROD = {desc: "LOTE COM 03 NOTEBOOK DELL LATITUDE 5400 PROCESSADOR CORE I7 16GB RAM", quantidade: 3, lance: 2100, maior_lance: 2000, incremento: 100,
+  preco_unit: 1850, transporte: 350, despesas: 0, defeito_pct: 15, reparo_unit: 80, comissao_pct: 5, local: "Santa Bárbara d'Oeste/SP", comitente: "Bradesco", leiloeiro: "Freitas Leiloeiro"};
+
+function blocoProdLido() {
+  const B = estado.prodLido?.bruto; if (!B) return "";
+  const P = extrairProduto(B), cfg = CFG_PROD();
+  const lista = P.lista.length ? `<h3 style="margin:12px 0 6px">📚 Lotes desta página (${P.lista.length})</h3>
+    <table><thead><tr><th>Lote</th><th>Descrição</th><th class="num">Qtd</th><th class="num">Maior lance</th><th class="num">Por unidade</th><th></th></tr></thead><tbody>
+    ${P.lista.map((o, i) => { const q = Number((o.desc.match(/lote\s*(?:com|de)\s*(\d{1,4})/i) || [])[1]) || 1;
+      return `<tr><td>${esc(o.num)}<div class="mini">${esc(o.data)}</div></td><td>${o.u ? `<a href="${urlSegura(o.u)}" target="_blank" rel="noopener">${esc(o.desc)}</a>` : esc(o.desc)}${o.estado ? `<div class="mini">${esc(o.estado)}</div>` : ""}</td>
+      <td class="num">${q}</td><td class="num">${brl(o.valor)}</td><td class="num">${brl(o.valor / q)}</td><td><button class="btn" data-analisar-item="${i}">Analisar</button></td></tr>`; }).join("")}</tbody></table>
+    <p class="mini">Para a ficha completa de um lote (comissão, despesas, retirada), abra o lote e clique no favorito nele.</p>` : "";
+  const fichaVeic = new Set(["Placa", "Combustível", "Cor"]);
+  const ficha = Object.entries(P.ficha).filter(([k]) => !fichaVeic.has(k));
+  return `<div id="aviso-prod" class="aviso exemplo-aviso">
+    <b>Lido de ${esc(P.host)}</b>: ${esc(P.desc || "?")}${P.spec.length ? ` · <b>${esc(P.spec.join(" · "))}</b>` : ""}
+    ${P.lista.length ? "" : `<div style="margin-top:6px">🚚 ${P.entrega.modo === "entrega" ? `<b>Entrega pelo leiloeiro</b>${P.entrega.gratis ? " · frete grátis" : P.entrega.frete != null ? ` · frete ${brl(P.entrega.frete)} (já entra na conta)` : " · o valor do frete não aparece na página: calcule no site (CEP) e digite na calculadora"}` : `<b>Retirada no pátio</b>${P.lote.local ? ": " + esc(P.lote.local) : ""}`}</div>`}
+    ${P.lista.length ? "" : `<div style="margin-top:6px">📦 Quantidade: <b>${P.quantidade}</b>${P.quantidadeLida ? "" : " (não achei no texto: confira)"}${P.sugestao ? ` · 💡 Preço de usado sugerido: <b>${brl(P.sugestao.preco)}</b> (${esc(P.sugestao.nome)}, ${P.sugestao.fonte === "web" ? "pesquisa web" : "anúncios"})` : ""}</div>`}
+    ${P.alertas.length ? `<div style="margin-top:6px">⚠️ <b>Atenção:</b><ul style="margin:4px 0 0">${P.alertas.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}
+    ${P.positivos.length ? `<div style="margin-top:6px">👍 ${P.positivos.map(esc).join(" · ")}</div>` : ""}
+    ${blocoConcorrencia(P)}
+    ${ficha.length && !P.lista.length ? `<h3 style="margin:12px 0 6px">📋 Ficha do lote</h3><div class="conta" style="max-width:620px">${ficha.map(([k, v]) => `<span class="neg">${esc(k)}</span><span>${esc(v)}</span>`).join("")}</div>` : ""}
+    ${lista}
+    ${P.pares.length && !P.lista.length ? `<details style="margin-top:6px"><summary>📄 Tudo que a página informa (${P.pares.length})</summary><div class="conta" style="max-width:720px;margin-top:6px">${P.pares.map(([k, v]) => `<span class="neg">${esc(k)}</span><span>${esc(v)}</span>`).join("")}</div></details>` : ""}
+    <div class="acoes"><button class="btn" data-descartar-prod>Descartar leitura</button></div></div>`;
+}
+function linksPreco(termo) {
+  const t = encodeURIComponent(termo || "");
+  const olx = (DADOS.regras.busca_manual_olx || "https://www.olx.com.br/estado-rj/rio-de-janeiro-e-regiao?q={q}&pe={max}&sf=1").replace("{q}", t).replace(/&pe=\{max\}/, "");
+  return `<span class="chips"><a class="btn" href="${urlSegura(olx)}" target="_blank" rel="noopener">Preço na OLX ↗</a>
+    <a class="btn" href="${urlSegura("https://lista.mercadolivre.com.br/" + (termo || "").replace(/\s+/g, "-") + "_ITEM*CONDITION_2230581")}" target="_blank" rel="noopener">Usados no Mercado Livre ↗</a></span>`;
+}
+function blocoCalcProd() {
+  return `<h2>🧮 Calculadora de lote de produtos</h2>
+    <form class="card calc" id="calc-prod" style="padding:16px">
+      <div class="calc-grade">
+        <label class="largo">Descrição do lote<input name="desc" placeholder="LOTE COM 03 NOTEBOOK DELL LATITUDE 5400 CORE I7 16GB" required></label>
+        <label>Quantidade<input name="quantidade" type="number" min="1" value="1"></label>
+        <label>Lance atual (R$)<input name="maior_lance" type="number" min="0" step="any"></label>
+        <label>Incremento (R$)<input name="incremento" type="number" min="0" step="any"></label>
+        <label>Seu lance (R$)<input name="lance" type="number" min="0" step="any" required></label>
+        <label>Comissão (%)<input name="comissao_pct" type="number" min="0" max="20" step="any" placeholder="5"></label>
+        <label>Despesas do leiloeiro (R$)<input name="despesas" type="number" min="0" step="any" value="0"></label>
+        <label>Como recebe<select name="entrega"><option value="retirada">Retirada no pátio</option><option value="entrega">Leiloeiro entrega (frete)</option></select></label>
+        <label><span data-rot-transp>Transporte / retirada (R$)</span><input name="transporte" type="number" min="0" step="any" placeholder="150"></label>
+        <label>Preço de revenda por unidade (R$)<input name="preco_unit" type="number" min="0" step="any" required></label>
+        <label>% com defeito<input name="defeito_pct" type="number" min="0" max="100" step="any" placeholder="15"></label>
+        <label>Reparo/limpeza por unidade (R$)<input name="reparo_unit" type="number" min="0" step="any" value="0"></label>
+        <label>Taxa de venda (%)<input name="taxa_venda_pct" type="number" min="0" max="30" step="any" placeholder="0 (OLX) · 13 (ML)"></label>
+        <label>Dias para revender<input name="dias" type="number" min="1" placeholder="30"></label>
+        <label class="largo">Link do lote<input name="url" type="url" placeholder="https://..."></label>
+      </div>
+      <div id="prod-precos" class="mini" style="margin-top:8px"></div>
+      <div id="prod-res" aria-live="polite"></div>
+      <div class="acoes"><button class="btn primario" type="submit">Salvar na minha lista</button><button class="btn" type="reset">Limpar</button></div>
+    </form>`;
+}
+function lerProd(form) {
+  const f = Object.fromEntries(new FormData(form)), n = v => v === "" || v == null ? null : Number(v);
+  return {desc: f.desc.trim(), quantidade: n(f.quantidade) || 1, maior_lance: n(f.maior_lance), incremento: n(f.incremento), lance: n(f.lance) || 0,
+    comissao_pct: n(f.comissao_pct), despesas: n(f.despesas) || 0, transporte: n(f.transporte), preco_unit: n(f.preco_unit), defeito_pct: n(f.defeito_pct),
+    reparo_unit: n(f.reparo_unit) || 0, taxa_venda_pct: n(f.taxa_venda_pct), dias: n(f.dias), url: f.url.trim(), entrega: f.entrega};
+}
+function atualizarProd() {
+  const form = document.getElementById("calc-prod"); if (!form) return;
+  const d = lerProd(form), cfg = CFG_PROD(), out = document.getElementById("prod-res");
+  const rotTransp = form.querySelector("[data-rot-transp]"); if (rotTransp) rotTransp.textContent = d.entrega === "entrega" ? "Frete de entrega (R$)" : "Transporte / retirada (R$)";
+  document.getElementById("prod-precos").innerHTML = d.desc ? `🔎 Conferir preço de usado de “${esc(termoBusca(d.desc))}”: ${linksPreco(termoBusca(d.desc))}` : "";
+  if (!d.lance) { out.innerHTML = `<p class="muted">Preencha o lance e o preço de revenda por unidade para ver a conta.</p>`; return; }
+  const c = contaProd(d, cfg), sit = situacaoProd(c, cfg), [rot, cor] = SIT_LOTE[sit === "sem_preco" ? "sem_fipe" : sit];
+  out.innerHTML = `<h3 style="margin:14px 0 8px">📊 Análise completa <span class="pill"><span class="dot" style="background:${cor}"></span>${sit === "sem_preco" ? "Sem preço de revenda" : rot}</span></h3>
+    ${c.P ? `<div style="max-width:680px">${painelProd(c, cfg)}</div>` : ""}<p style="margin:10px 0 0">${vereditoProd(c, cfg, sit, d)}</p>`;
+}
+function preencherProd(v) {
+  const form = document.getElementById("calc-prod"); if (!form) return;
+  for (const [k, val] of Object.entries(v)) if (form.elements[k] && val != null && val !== "") form.elements[k].value = val;
+  atualizarProd();
+}
+document.addEventListener("input", e => {
+  if (!e.target.closest?.("#calc-prod")) return;
+  if (["maior_lance", "incremento"].includes(e.target.name)) {
+    const f = e.target.form, ml = Number(f.maior_lance.value) || 0, inc = Number(f.incremento.value) || 0;
+    if (ml && (!f.lance.value || f.lance.dataset.auto === "1")) { f.lance.value = ml + inc; f.lance.dataset.auto = "1"; }
+  }
+  if (e.target.name === "lance") delete e.target.dataset.auto;
+  atualizarProd();
+});
+document.addEventListener("reset", e => { if (e.target.id === "calc-prod") setTimeout(atualizarProd, 0); });
+document.addEventListener("submit", e => {
+  if (e.target.id !== "calc-prod") return;
+  e.preventDefault();
+  const d = lerProd(e.target); d.id = "prod-" + Date.now(); if (d.url && !/^https?:\/\//i.test(d.url)) d.url = "";
+  (estado.lotesProdutos ||= []).unshift(d); delete estado.prodLido; salvar(); render();
+});
+document.addEventListener("click", e => {
+  if (e.target.closest("[data-descartar-prod]")) { delete estado.prodLido; salvar(); render(); return; }
+  const rp = e.target.closest("[data-remover-prod]");
+  if (rp) { estado.lotesProdutos = (estado.lotesProdutos || []).filter(x => x.id !== rp.dataset.removerProd); salvar(); render(); return; }
+  const ai = e.target.closest("[data-analisar-item]");
+  if (ai) {
+    const P = extrairProduto(estado.prodLido.bruto), o = P.lista[Number(ai.dataset.analisarItem)];
+    const q = Number((o.desc.match(/lote\s*(?:com|de)\s*(\d{1,4})/i) || [])[1]) || 1;
+    const form = document.getElementById("calc-prod"); form.reset();
+    preencherProd({desc: o.desc, quantidade: q, maior_lance: o.valor, lance: o.valor, url: o.u || ""});
+    form.scrollIntoView({behavior: "smooth", block: "start"});
+  }
+});
+function cardProd(d, exemplo = false) {
+  const cfg = CFG_PROD(), c = contaProd(d, cfg), sit = situacaoProd(c, cfg), [rot, cor] = SIT_LOTE[sit === "sem_preco" ? "sem_fipe" : sit];
+  const link = exemplo ? `href="#" data-exemplo-link` : d.url ? `href="${urlSegura(d.url)}" target="_blank" rel="noopener"` : "";
+  return `<article class="card ${exemplo ? "exemplo" : ""}">
+    <div class="foto" style="aspect-ratio: 2 / 1; padding-top: 28px"><span class="sem">${/notebook|laptop|macbook/i.test(d.desc) ? "💻" : /celular|iphone|smartphone/i.test(d.desc) ? "📱" : "📦"}</span>
+      <div class="selo">${exemplo ? SELO_EXEMPLO : ""}<span class="pill"><span class="dot" style="background:${cor}"></span>${sit === "sem_preco" ? "Sem preço de revenda" : rot}</span></div>
+      ${c.lucro > 0 ? `<span class="etiqueta">+${brl(c.lucro)}</span>` : ""}</div>
+    <div class="corpo">
+      <h3>${link ? `<a ${link}>${esc(d.desc)}</a>` : esc(d.desc)}</h3>
+      <div class="muted">${c.q} unidade(s) · revenda ${brl(c.P)} cada${d.local ? " · " + esc(d.local) : ""}</div>
+      ${painelProd(c, cfg)}
+      <div class="mini">${vereditoProd(c, cfg, sit, d)}</div>
+      <div class="acoes">${link ? `<a class="btn primario" ${link}>Ver lote ↗</a>` : ""}${exemplo ? "" : `<button class="btn" data-remover-prod="${esc(d.id)}">🗑️ Remover</button>`}</div>
+    </div></article>`;
+}
+function renderLeilaoProdutos() {
+  const meus = estado.lotesProdutos || [];
+  const ex = mostrarExemplo("leilao-produtos", meus.length > 0 || !!estado.prodLido);
+  setTimeout(() => {
+    atualizarProd();
+    const B = estado.prodLido?.bruto;
+    if (B && !estado.prodLido.preenchido) {
+      estado.prodLido.preenchido = true; salvar();
+      const P = extrairProduto(B);
+      if (!P.lista.length) {
+        const L = P.lote;
+        preencherProd({desc: P.desc, quantidade: P.quantidade, maior_lance: L.maior_lance, incremento: L.incremento, lance: L.lance_atual || null,
+          comissao_pct: L.comissao_pct, despesas: L.taxas_leiloeiro || null, entrega: P.entrega.modo,
+          transporte: P.entrega.modo === "entrega" ? P.entrega.frete : (P.foraRJ ? Math.max(CFG_PROD().transporte_reais, 400) : null),
+          preco_unit: P.sugestao ? P.sugestao.preco : null, url: B.u});
+      }
+    }
+  }, 0);
+  return `<div class="filtros"><p class="muted" style="flex:1;margin:0">Notebooks, celulares, eletrônicos e outros lotes de leilão. Abra o lote (ou a lista de lotes) no site do leiloeiro e clique no favorito <b>📥 Analisar no Revenda RJ</b>: o painel lê quantidade, lances, comissão, despesas e retirada; você confere o preço de usado de cada unidade e vê se vale a pena.</p>${botaoExemplo("leilao-produtos", ex)}</div>`
+    + (ex ? avisoExemplo("Lote de 3 notebooks como o do seu print.") + `<div class="grade">${cardProd(EXEMPLO_PROD, true)}</div>` : "")
+    + (estado.prodLido ? "" : `<details class="card" style="padding:10px 14px;margin:10px 0"><summary>📥 Instalar o favorito (para ler lotes e listas de lotes)</summary>${blocoInstalarFavorito()}</details>`)
+    + blocoProdLido() + blocoCalcProd()
+    + (meus.length ? `<h2>⭐ Meus lotes de produtos (${meus.length})</h2><div class="grade">${meus.map(d => cardProd(d)).join("")}</div>` : "")
+    + `<details class="guia"><summary><h2 style="display:inline">📘 Como lucrar com leilão de produtos</h2></summary>
+      <ul><li><b>Lotes com várias unidades</b> (ex.: 3 notebooks) diluem custos fixos: compare sempre o <b>custo por unidade</b> com o preço de usado.</li>
+      <li><b>"Vendido no estado"</b> = sem teste nem garantia: conte com uma parte com defeito (bateria, tela, carregador faltando). Ajuste o % com defeito.</li>
+      <li>Corporativos (Dell Latitude, Lenovo ThinkPad, HP EliteBook) revendem bem para quem trabalha e estuda; confira se não há <b>senha de BIOS</b> ou bloqueio da empresa (MDM).</li>
+      <li>Celulares de leilão: confira <b>bloqueio de conta/IMEI</b>; sem isso, vira peça.</li>
+      <li>Retirada fora do RJ pesa: inclua viagem ou frete no transporte. Quando o leiloeiro <b>entrega</b>, o painel lê o frete da página (se aparecer) e põe na conta; se só houver "calcule o frete", calcule com seu CEP no site e digite.</li>
+      <li>Venda as unidades boas inteiras e as com defeito como peça; o painel considera ${Math.round(VALOR_DEFEITO * 100)}% do preço para as com defeito.</li></ul></details>`;
+}
+
 // ---------------------------------------------------------------- aba Hoje
 function renderHoje() {
   const opp = DADOS.anuncios.filter(a => a.situacao === "oportunidade").map(a => ({t: a.titulo, s: `${a.bairro || ""} · OLX`, lucro: a.lucro, img: a.imagens?.[0], cat: a.categoria, aba: "oportunidades"}));
@@ -1295,6 +1565,7 @@ function renderHoje() {
       ${linha("olx", "🔎 Análise OLX", IMPORTADOS.length ? `${IMPORTADOS.length} anúncios trazidos` : "use o favorito numa busca", olx.length)}
       ${linha("promocoes", "🛒 Promoções em lojas", "produto novo que dá lucro", promo.length)}
       ${linha("leiloes", "🚗 Leilões de carros", DADOS.leiloes?.config?.ativa === false ? `calculadora · ${(estado.lotesManuais || []).length} lote(s) salvos` : `${(DADOS.leiloes?.lotes || []).length} lotes analisados`, DADOS.leiloes?.config?.ativa === false ? lotesManuais().filter(l => l.situacao === "lucro").length : lotes.length)}
+      ${linha("leilao-produtos", "🔨 Leilão de produtos", "notebooks, celulares, eletrônicos", (estado.lotesProdutos || []).length)}
       ${linha("passagens", "✈️ Passagens", rotaBoa ? `${esc(rotaBoa.r.nome)} abaixo do alvo` : "nenhuma rota abaixo do alvo", rotas.length ? brl(Math.min(...rotas.map(x => x.p))) : "—")}
       ${linha("execucoes", "⚙️ Gasto com IA no mês", `teto definido em regras.yaml`, "US$ " + gasto.toFixed(2))}
     </div></div>`;
@@ -1309,11 +1580,20 @@ const ABAS = [
   {id: "olx", rot: "🔎 Análise OLX", cont: () => IMPORTADOS.filter(a => a.situacao === "oportunidade").length},
   {id: "promocoes", rot: "🛒 Promoções em lojas", cont: () => (DADOS.promocoes?.achados || []).length},
   {id: "produtos", rot: "📦 Produtos", cont: () => DADOS.produtos.length},
+  {id: "leilao-produtos", rot: "🔨 Leilão de produtos", cont: () => (estado.lotesProdutos || []).length},
   {id: "leiloes", rot: "🚗 Leilões", cont: () => (DADOS.leiloes?.lotes || []).filter(l => l.situacao === "lucro").length},
   {id: "passagens", rot: "✈️ Passagens", cont: () => DADOS.passagens.length},
   {id: "operacoes", rot: "💰 Minhas operações", cont: () => ops().length},
   {id: "execucoes", rot: "⚙️ Execuções"},
 ];
+// Lote recebido do favorito: decide se é veículo (aba Leilões) ou produto (aba Leilão de produtos).
+if (estado.loteRecebido) {
+  const R = estado.loteRecebido; delete estado.loteRecebido;
+  let veic = false; try { veic = ehVeiculo(extrairLote(R.bruto)) && !extrairListaLotes(R.bruto).length; } catch (e) {}
+  if (veic) estado.loteLido = R; else estado.prodLido = R;
+  salvar();
+  history.replaceState(null, "", location.pathname + (veic ? "#leiloes" : "#leilao-produtos"));
+}
 let abaAtual = location.hash.slice(1) || estado.aba || "hoje";
 
 function renderAbas() {
@@ -1591,7 +1871,7 @@ function render() {
   el.innerHTML = {
     oportunidades: () => renderListaAnuncios("oportunidade", `Anúncios com margem estimada de pelo menos ${DADOS.regras.margem_min_pct}% e lucro de pelo menos ${brl(DADOS.regras.lucro_min_reais)} sobre a mediana do mercado, já descontados ${DADOS.regras.desconto_negociacao_pct}% de negociação na revenda e ${brl(DADOS.regras.custo_fixo_reais)} de custos.`),
     observacao: () => renderListaAnuncios("observacao", "Quase lá: margem entre a metade e o alvo, ou produtos ainda com poucos anúncios para comparar. Bons para negociar ou acompanhar se o preço cai."),
-    hoje: renderHoje, leiloes: renderLeiloes, olx: renderAnaliseOlx, promocoes: renderPromocoes, produtos: renderProdutos, passagens: renderPassagens, operacoes: renderOperacoes, execucoes: renderExecucoes,
+    hoje: renderHoje, leiloes: renderLeiloes, "leilao-produtos": renderLeilaoProdutos, olx: renderAnaliseOlx, promocoes: renderPromocoes, produtos: renderProdutos, passagens: renderPassagens, operacoes: renderOperacoes, execucoes: renderExecucoes,
   }[abaAtual]?.() ?? "";
 }
 
@@ -1635,7 +1915,8 @@ document.addEventListener("click", e => {
     const tem = {produtos: DADOS.produtos.some(p => p.ref || p.novo), passagens: DADOS.passagens.some(r => r.ultima),
                  oportunidades: DADOS.anuncios.some(a => a.situacao === "oportunidade"),
                  promocoes: (DADOS.promocoes?.achados || []).length > 0,
-                 leiloes: (DADOS.leiloes?.lotes || []).length > 0}[aba];
+                 leiloes: (DADOS.leiloes?.lotes || []).length > 0,
+                 "leilao-produtos": (estado.lotesProdutos || []).length > 0 || !!estado.prodLido}[aba];
     const atual = mostrarExemplo(aba, tem);
     estado.exemplos[aba] = !atual; salvar(); render(); return;
   }
