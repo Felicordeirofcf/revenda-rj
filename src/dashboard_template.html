@@ -445,7 +445,8 @@ if(!/(^|\.)olx\.com\.br$/.test(location.hostname)){
 const meta=n=>{const m=document.querySelector('meta[property="'+n+'"],meta[name="'+n+'"]');return m?m.content:''};
 const txt=(document.body.innerText||'').replace(/\t+/g,' | ').replace(/ +/g,' ').replace(/\n\s*\n+/g,'\n').slice(0,20000);
 if(txt.length<200){alert('Esta página ainda não carregou o lote. Espere carregar e clique de novo.');return}
-abrir('__PAINEL__#lote='+enc({v:1,u:location.href,h:location.hostname,t:document.title,ot:meta('og:title'),oi:meta('og:image'),x:txt}));return}
+const h1=[...document.querySelectorAll('h1,h2')].map(e=>(e.innerText||'').trim()).filter(t=>t.length>3&&t.length<160).slice(0,4);
+abrir('__PAINEL__#lote='+enc({v:1,u:location.href,h:location.hostname,t:document.title,ot:meta('og:title'),od:meta('og:description')||meta('description'),oi:meta('og:image'),h1:h1,x:txt}));return}
 let L=[];
 const el=document.getElementById('__NEXT_DATA__');
 if(el){try{const d=JSON.parse(el.textContent);let best=[];const st=[d];
@@ -604,6 +605,43 @@ function decodificarHash(b) {
   return JSON.parse(decodeURIComponent(escape(atob(b))));
 }
 const numBR = t => { if (!t) return null; let v = String(t).replace(/[^\d,.]/g, ""); if (v.includes(",")) v = v.replace(/\./g, "").replace(",", "."); else v = v.replace(/\./g, ""); const n = parseFloat(v); return isFinite(n) && n > 0 ? n : null; };
+
+// ---------------------------------------------------------------- nome do veículo
+const MARCAS_VEICULO = ["chevrolet", "gm", "fiat", "volkswagen", "vw", "ford", "toyota", "honda", "hyundai", "renault", "nissan", "jeep",
+  "mitsubishi", "peugeot", "citroen", "citroën", "kia", "chery", "caoa", "bmw", "mercedes", "mercedes-benz", "audi", "volvo", "land", "ram", "dodge",
+  "subaru", "suzuki", "jac", "byd", "gwm", "haval", "mini", "porsche", "lexus", "iveco", "troller", "yamaha", "kawasaki", "harley",
+  "harley-davidson", "triumph", "dafra", "shineray", "haojue", "royal", "ducati", "ktm", "bajaj", "sundown", "kasinski", "mottu", "voltz"];
+// Modelos muito comuns, para reconhecer quando a marca não aparece ("ONIX LT 1.0", "CG 160").
+const MODELOS_CONHECIDOS = /\b(onix|prisma|cruze|tracker|s10|spin|cobalt|celta|corsa|classic|montana|gol|polo|virtus|voyage|saveiro|fox|up|t-?cross|nivus|amarok|jetta|argo|cronos|mobi|uno|palio|siena|strada|toro|fiorino|pulse|fastback|ka|fiesta|ecosport|ranger|focus|corolla|etios|yaris|hilux|sw4|civic|city|fit|hr-?v|wr-?v|hb20|hb20s|creta|tucson|ix35|sandero|logan|kwid|duster|oroch|captur|versa|kicks|march|sentra|frontier|renegade|compass|commander|l200|triton|pajero|outlander|asx|208|2008|3008|c3|c4|cerato|sportage|tiggo|cg|biz|pop|bros|xre|fan|titan|nxr|pcx|elite|lander|fazer|factor|crosser|nmax|xtz|ybr|neo)\b/i;
+function nomeDoLink(u) {
+  try {
+    const partes = new URL(u).pathname.split("/").filter(Boolean).map(decodeURIComponent);
+    const seg = partes.filter(x => (x.match(/-/g) || []).length >= 2).sort((a, b) => b.replace(/[^a-z]/gi, "").length - a.replace(/[^a-z]/gi, "").length)[0];
+    if (!seg) return {};
+    let t = seg.toLowerCase().replace(/\.[a-z]{2,4}$/, "").replace(/-(placa|ref|refer[eê]ncia|lote|cod|codigo|id|chassi)\b.*$/, "").replace(/-\d{5,}$/, "");
+    const anos = [...t.matchAll(/(?:^|-)((?:19|20)\d{2})(?=-|$)/g)].map(m => Number(m[1]));
+    t = t.replace(/(?:^|-)(?:19|20)\d{2}(?=-|$)/g, "-").replace(/(\d)([a-z]{3,})/g, "$1 $2").replace(/-+/g, " ").trim();
+    // motor "24" -> "2.4", "10" -> "1.0" (tokens isolados de 2 dígitos)
+    t = t.split(" ").map(w => /^[1-6]\d$/.test(w) ? w[0] + "." + w[1] : w).join(" ");
+    const nome = t.split(" ").map(w => w.length <= 3 && /\d/.test(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    return {nome: nome.length >= 4 ? nome : null, ano: anos.length ? Math.max(...anos) : null};
+  } catch (e) { return {}; }
+}
+function melhorNomeVeiculo(cands) {
+  const pontua = c => {
+    const n = normalizar(c);
+    let p = 0;
+    if (MARCAS_VEICULO.some(m => new RegExp(`\\b${m}\\b`).test(n))) p += 5;
+    if (MODELOS_CONHECIDOS.test(n)) p += 4;
+    if (/\b\d\.\d\b|\b\d{3}\b|\bcc\b/.test(n)) p += 1;
+    if (/refer[eê]ncia|^lote\b|c[oó]digo|leil[aã]o|leiloeiro|\bid\b|^\d+$|cadastr|login|entrar/.test(n)) p -= 6;
+    if (n.length > 90) p -= 2;
+    return p;
+  };
+  const ord = cands.map(c => ({c, p: pontua(c)})).sort((a, b) => b.p - a.p);
+  return ord.length && ord[0].p > 0 ? ord[0].c.split(/\s[|\-–—]\s/)[0].trim().slice(0, 80) : null;
+}
+
 function extrairLote(p) {
   const x = (p.x || "").replace(/ /g, " "), lx = x.toLowerCase(), achados = [], ficha = {};
   const linhas = x.split("\n").map(l => l.trim()).filter(Boolean);
@@ -632,10 +670,15 @@ function extrairLote(p) {
   const descricao = pega("descrição", /descri[çc][ãa]o(?:\s*completa)?\s*:?\s*\n\s*([^\n]{5,200})/i, m => m[1].trim())
     || par(/^descri[çc][ãa]o/i) || "";
   const tituloPag = ((p.ot || p.t || "").split(/\s[|\-–—]\s/)[0] || "").trim();
-  const baseNome = (descricao || tituloPag).split(",")[0].replace(/\//g, " ").replace(/\s+/g, " ").trim();
+  const doLink = nomeDoLink(p.u);
+  const candidatos = [...(p.h1 || []), p.ot, doLink.nome, descricao.split(",")[0], (p.od || "").split(/[.,]/)[0], tituloPag, p.t]
+    .filter(Boolean).map(c => c.replace(/\//g, " ").replace(/\s+/g, " ").trim());
+  const baseNome = melhorNomeVeiculo(candidatos) || doLink.nome || tituloPag;
+  if (baseNome) achados.push(`modelo: “${baseNome}”`);
   let ano = pega("ano", /ano(?:\s*(?:de\s*)?(?:fabrica[çc][ãa]o|fab\.?|modelo|fab\/mod\.?))?\s*[:\-|]?\s*((?:19|20)\d{2})(?:\s*\/\s*((?:19|20)\d{2}))?/i, m => Number(m[2] || m[1]))
     ?? pega("ano", /\b((?:19|20)\d{2})\s*\/\s*((?:19|20)\d{2})\b/, m => Number(m[2]))
     ?? (descricao ? (m => m ? (achados.push(`ano: “${m[0].trim()}”`), 2000 + Number(m[2])) : null)(descricao.match(/,\s*(\d{2})\s*\/\s*(\d{2})\s*(?:,|$)/)) : null);
+  if (!ano && doLink.ano) { ano = doLink.ano; achados.push(`ano (do link): ${doLink.ano}`); }
   const km = pega("km", /(?:quilometragem|km(?:\s*rodados)?)\s*[:\-|]?\s*(\d{1,3}(?:\.\d{3})+|\d{3,7})\b/i, m => numBR(m[1])) ?? pega("km", /\b(\d{1,3}(?:\.\d{3})+|\d{4,7})\s*km\b/i, m => numBR(m[1]));
 
   // 3) Lances, incremento, comissão e despesas
@@ -707,7 +750,7 @@ function extrairLote(p) {
   if (/com\s*chave|chave\s*reserva/i.test(lx)) positivos.push("Com chave");
   if (/(?:liga|funciona)\s*e\s*anda|em\s*funcionamento/i.test(lx)) positivos.push("Liga e anda (segundo o anúncio)");
 
-  const moto = /\bmoto(?:cicleta|neta)?s?\b|\b\d{2,4}\s?cc\b|\bhonda\s+(?:cg|biz|pop|bros|xre|cb|nxr|pcx|elite|adv)\b|\byamaha\b|\b(?:fazer|factor|lander|crosser|nmax|xmax|neo|xtz|ybr|mt-?\d{2})\b|\bsuzuki\b|\bkawasaki\b|\bharley\b|\btriumph\b|\bdafra\b|\bshineray\b/i.test(lx + " " + (p.ot || p.t || "").toLowerCase());
+  const moto = /\bmoto(?:cicleta|neta)?s?\b|\b\d{2,4}\s?cc\b|\bhonda\s+(?:cg|biz|pop|bros|xre|cb|nxr|pcx|elite|adv)\b|\byamaha\b|\b(?:fazer|factor|lander|crosser|nmax|xmax|neo|xtz|ybr|mt-?\d{2})\b|\bsuzuki\b|\bkawasaki\b|\bharley\b|\btriumph\b|\bdafra\b|\bshineray\b/i.test(lx + " " + (p.ot || p.t || "").toLowerCase() + " " + baseNome.toLowerCase());
   if (moto) achados.push("veículo: moto");
   const host = (p.h || "").replace(/^www\./, "");
   const dom = Object.keys(NOME_LEILOEIRO).find(d => host === d || host.endsWith("." + d));
@@ -934,7 +977,7 @@ function renderLeiloes() {
   if (L.config && L.config.ativa === false && !L.lotes.length) {
     const cfg = CFG_LEIL();
     const meus = lotesManuais();
-    setTimeout(() => { atualizarCalc(); { const L = loteLido(); if (L) { preencherCalc(L.lote); if (!L.lote.valor_fipe && L.lote.ano && !estado.loteLido.fipeTentada) { estado.loteLido.fipeTentada = true; salvar(); buscarFipe(); } } } }, 0);
+    setTimeout(() => { atualizarCalc(); { const L = loteLido(); if (L) { preencherCalc(L.lote); const chave = `${L.lote.marca_modelo}|${L.lote.ano}|${L.lote.veiculo}`; if (!L.lote.valor_fipe && L.lote.ano && estado.loteLido.fipeTentada !== chave) { estado.loteLido.fipeTentada = chave; salvar(); buscarFipe(); } } } }, 0);
     return `<p class="muted">Carros e motos de leilão. Os sites de leilão só mostram os lotes no seu navegador: cole o link do lote ou abra um leiloeiro abaixo, filtre por <b>veículos</b> e <b>RJ</b>, e jogue o veículo que gostou na calculadora: ela faz a conta completa e diz até quanto vale dar de lance. Lance máximo configurado: <b>${brl(cfg.lance_max)}</b>.</p>`
       + blocoColarLink() + blocoLoteLido() + blocoCalculadora() + blocoSitesLeilao()
       + (meus.length ? `<h2>⭐ Meus lotes (${meus.length})</h2><div class="grade">${meus.map(l => cardLote(l)).join("")}</div>` : "")
@@ -952,7 +995,7 @@ function renderLeiloes() {
   const meus = lotesManuais();
   if (meus.length) html += `<h2>⭐ Meus lotes (${meus.length})</h2><div class="grade">${meus.map(l => cardLote(l)).join("")}</div>`;
   html += blocoColarLink() + blocoLoteLido() + blocoCalculadora() + blocoSitesLeilao();
-  setTimeout(() => { atualizarCalc(); { const L = loteLido(); if (L) { preencherCalc(L.lote); if (!L.lote.valor_fipe && L.lote.ano && !estado.loteLido.fipeTentada) { estado.loteLido.fipeTentada = true; salvar(); buscarFipe(); } } } }, 0);
+  setTimeout(() => { atualizarCalc(); { const L = loteLido(); if (L) { preencherCalc(L.lote); const chave = `${L.lote.marca_modelo}|${L.lote.ano}|${L.lote.veiculo}`; if (!L.lote.valor_fipe && L.lote.ano && estado.loteLido.fipeTentada !== chave) { estado.loteLido.fipeTentada = chave; salvar(); buscarFipe(); } } } }, 0);
   return html + guiaLeilao();
 }
 
