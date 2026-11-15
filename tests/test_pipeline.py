@@ -98,6 +98,7 @@ def test_pipeline_completo(tmp_path, regras, catalogo, passagens):
         assert golpe.situacao == "descartado" and golpe.motivo_situacao.startswith("IA:")
         assert s.query(PesquisaDB).filter_by(tipo="produto").count() == 3      # max_por_execucao
         assert s.query(PesquisaDB).filter_by(tipo="passagem").count() == 2
+        assert s.query(PesquisaDB).filter_by(tipo="promocoes").count() == 1  # caçador de promoções
     assert ex.oportunidades == 1 and ex.novas_oportunidades == 1 and ex.custo_usd > 0
 
     # Prompt caching: o bloco de checklists é marcado como cacheável.

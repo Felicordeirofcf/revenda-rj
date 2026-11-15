@@ -153,3 +153,52 @@ class PesquisadorWeb:
             "(LATAM, GOL, Azul). Preço por adulto, ida e volta, em reais."
         )
         return self._pesquisar(pedido, SCHEMA_PASSAGEM, "Registra as passagens encontradas para a rota.")
+
+
+    def promocoes(self, tetos: list[dict[str, Any]], hoje: str, dominios: list[str]):
+        linhas = "\n".join(f"- {t['id']}: {t['nome']} — teto R$ {t['teto']:.0f}" for t in tetos)
+        pedido = (
+            f"Hoje é {hoje}. Procure PROMOÇÕES ATUAIS (de hoje ou dos últimos 2 dias) de produtos NOVOS vendidos "
+            "no Brasil, para comprar e revender com lucro. Só interessam ofertas com preço final igual ou menor que "
+            "o teto de cada produto abaixo (o teto já garante a margem):\n"
+            f"{linhas}\n\n"
+            "Onde procurar: lojas grandes e confiáveis e as comunidades de promoção Pelando e Promobit (procure "
+            "por 'menor preço', 'cupom', 'promoção', 'bug de preço'). Faça buscas agrupando vários produtos por "
+            "busca. Descarte: produto usado/recondicionado, de vitrine, importado sem garantia, vendedor terceiro "
+            "desconhecido no marketplace, oferta expirada ou esgotada, preço que só vale parcelado. "
+            "Se nada passar do teto, devolva a lista vazia: isso é normal na maioria dos dias."
+        )
+        return self._pesquisar(pedido, schema_promocoes([t["id"] for t in tetos]),
+                               "Registra as promoções encontradas abaixo do teto.", dominios)
+
+
+# ---------------------------------------------------------------------------- promoções
+def schema_promocoes(ids_produtos: list[str]) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "achados": {
+                "type": "array",
+                "description": "Ofertas ATUAIS de produto NOVO que custam no máximo o preço-teto do produto. Lista vazia se nada passar.",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "produto_id": {"type": "string", "enum": ids_produtos},
+                        "titulo": {"type": "string", "description": "Nome do produto como aparece na oferta."},
+                        "loja": {"type": "string"},
+                        "vendido_por": {"type": "string", "description": "Quem vende/entrega (ex.: 'Amazon', 'loja oficial Samsung', 'vendedor terceiro X'). Vazio se não informado."},
+                        "preco": {"type": "number", "description": "Preço final à vista em reais, já com cupom/Pix se a oferta disser."},
+                        "cupom": {"type": "string", "description": "Código do cupom ou condição (ex.: 'no Pix', 'Prime'). Vazio se não houver."},
+                        "url": {"type": "string", "description": "Link copiado de um resultado da busca."},
+                        "publicado": {"type": "string", "description": "Quando a oferta apareceu (ex.: 'hoje', 'há 3 horas', '2026-11-14'). Vazio se não souber."},
+                        "observacao": {"type": "string", "description": "Ex.: 'estoque limitado', 'esgotou segundo comentários', 'versão importada'. Vazio se nada."},
+                    },
+                    "required": ["produto_id", "titulo", "loja", "vendido_por", "preco", "cupom", "url", "publicado", "observacao"],
+                },
+            },
+            "resumo": {"type": "string", "description": "1-2 frases sobre o cenário de promoções hoje."},
+        },
+        "required": ["achados", "resumo"],
+    }

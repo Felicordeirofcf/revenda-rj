@@ -87,3 +87,36 @@ pesquisa_web:
     max_por_execucao: 3
   # Teto mensal estimado (US$). Se o gasto do mês passar disso, as pesquisas param até o mês virar.
   teto_mensal_usd: 15
+
+# Caçador de promoções: o Claude procura o catálogo em promoção em LOJAS CONFIÁVEIS e o robô
+# compara com o preço de revenda (mediana dos usados no Rio). Só aparece o que dá lucro.
+promocoes:
+  ativa: true
+  refazer_a_cada_horas: 6            # ~3 a 4 vezes por dia (das 7h às 23h)
+  max_buscas_por_pesquisa: 6
+  # Comprar novo e revender: quem compra lacrado aceita pagar perto da mediana dos usados ou mais.
+  # Usamos a mediana dos usados como preço de revenda (conservador).
+  # Só são aceitos links destes sites (subdomínios incluídos). O resto é descartado no código.
+  lojas_confiaveis:
+    - amazon.com.br
+    - mercadolivre.com.br
+    - magazineluiza.com.br
+    - kabum.com.br
+    - casasbahia.com.br
+    - pontofrio.com.br
+    - extra.com.br
+    - americanas.com.br
+    - fastshop.com.br
+    - carrefour.com.br
+    - girafa.com.br
+    - samsung.com
+    - apple.com
+    - nintendo.com
+    - playstation.com
+    - xbox.com
+    - pichau.com.br
+    - terabyteshop.com.br
+  # Comunidades de promoção (usadas para ACHAR a oferta; o link final precisa ser de loja confiável).
+  sites_de_promocao:
+    - pelando.com.br
+    - promobit.com.br

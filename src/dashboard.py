@@ -8,8 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from .config import Catalogo
+from sqlalchemy import select
+
 from .database import AnuncioDB, Database, agora, utc
+from .database import PesquisaDB
 from .precos import calcular_referencias, escolher_referencia
+from .promocoes import montar_achados, tetos_de_compra
 
 TEMPLATE = Path(__file__).with_name("dashboard_template.html")
 
@@ -111,6 +115,24 @@ def montar_dados(db: Database, regras: dict, catalogo: Catalogo, passagens: dict
                 "erro": erro.erro if erro and erro.erro else None,
             })
 
+        # Promoções: caçador (últimas 48h) + pesquisas de preço novo (últimos 7 dias), só sites confiáveis.
+        recentes = list(s.scalars(select(PesquisaDB).where(
+            PesquisaDB.tipo == "promocoes", PesquisaDB.erro.is_(None),
+            PesquisaDB.pesquisado_em >= (quando - timedelta(hours=48)).replace(tzinfo=None))))
+        produtos_web = {}
+        for item in catalogo.itens:
+            w = db.ultima_pesquisa(s, "produto", item.id, so_sucesso=True)
+            if w and quando - utc(w.pesquisado_em) <= timedelta(days=7):
+                produtos_web[item.id] = w
+        ultima_promo = db.ultima_pesquisa(s, "promocoes", "geral")
+        promocoes = {
+            "achados": montar_achados(recentes, produtos_web, catalogo, refs, regras, quando),
+            "tetos": tetos_de_compra(catalogo, refs, regras),
+            "ultima": ({"pesquisado_em": _iso(ultima_promo.pesquisado_em), "erro": ultima_promo.erro,
+                        "resumo": ultima_promo.dados.get("resumo")} if ultima_promo else None),
+            "lojas": (regras.get("promocoes") or {}).get("lojas_confiaveis") or [],
+        }
+
         execucoes = [
             {"inicio": _iso(e.inicio), "fim": _iso(e.fim), "coletados": e.coletados, "novos": e.novos,
              "oportunidades": e.oportunidades, "novas": e.novas_oportunidades, "ia": e.analises_ia,
@@ -128,6 +150,7 @@ def montar_dados(db: Database, regras: dict, catalogo: Catalogo, passagens: dict
         "produtos": produtos,
         "checklists": catalogo.checklists,
         "passagens": rotas,
+        "promocoes": promocoes,
         "execucoes": execucoes,
     }
 

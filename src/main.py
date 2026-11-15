@@ -28,6 +28,7 @@ from .ia_base import IAError
 from .models import UsoTokens
 from .pesquisa_web import PesquisadorWeb
 from .precos import avaliar, calcular_referencias
+from .promocoes import tetos_de_compra
 from .regiao import regiao_aceita
 from .triagem import Triador
 
@@ -207,11 +208,23 @@ class Robo:
                 s.add(PesquisaDB(tipo=tipo, alvo_id=alvo, pesquisado_em=quando, erro=str(exc)))
                 return
             self.uso.somar(uso)
-            lista = dados.get("ofertas") if tipo == "produto" else dados.get("voos")
+            lista = {"produto": dados.get("ofertas"), "passagem": dados.get("voos")}.get(tipo, dados.get("achados"))
             precos = [o["preco"] for o in (lista or []) if o.get("preco")]
             s.add(PesquisaDB(tipo=tipo, alvo_id=alvo, pesquisado_em=quando,
                              melhor_preco=min(precos) if precos else None,
                              dados_json=json.dumps(dados, ensure_ascii=False), custo_usd=uso.custo_usd))
+
+        # Promoções primeiro: se o teto mensal apertar, é o que mais importa.
+        promo = self.regras.get("promocoes") or {}
+        if promo.get("ativa") and hasattr(self, "referencias"):
+            intervalo = timedelta(hours=float(promo.get("refazer_a_cada_horas", 6)))
+            tetos = tetos_de_compra(self.catalogo, self.referencias, self.regras)
+            if tetos and vencido("promocoes", "geral", intervalo):
+                pesq_promo = PesquisadorWeb(self.client, cfg.get("modelo", "claude-sonnet-5-5"), cfg.get("effort", "low"),
+                                            int(promo.get("max_buscas_por_pesquisa", 6)))
+                dominios = list(promo.get("lojas_confiaveis") or []) + list(promo.get("sites_de_promocao") or [])
+                hoje_ = quando.astimezone(timezone(timedelta(hours=-3))).date().isoformat()
+                registrar("promocoes", "geral", lambda: pesq_promo.promocoes(tetos, hoje_, dominios))
 
         pc = cfg.get("produtos") or {}
         intervalo = timedelta(days=float(pc.get("refazer_a_cada_dias", 3)))
