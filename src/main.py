@@ -51,6 +51,7 @@ class Robo:
         self.fontes = fontes if fontes is not None else self._criar_fontes()
         self.erros: list[str] = []
         self.uso = UsoTokens()
+        self.forcar_leiloes = False
 
     def _criar_fontes(self) -> dict[str, Any]:
         fontes = {}
@@ -232,7 +233,8 @@ class Robo:
                 registrar("promocoes", "geral", lambda: pesq_promo.promocoes(tetos, hoje_, dominios))
 
         leil = self.regras.get("leiloes") or {}
-        if leil.get("ativa") and vencido("leiloes", "geral", timedelta(hours=float(leil.get("refazer_a_cada_horas", 20)))):
+        intervalo_leil = timedelta(0) if self.forcar_leiloes else timedelta(hours=float(leil.get("refazer_a_cada_horas", 20)))
+        if leil.get("ativa") and vencido("leiloes", "geral", intervalo_leil):
             pesq_leil = PesquisadorWeb(self.client, leil.get("modelo") or pesq.modelo, leil.get("effort", cfg.get("effort", "low")),
                                        int(leil.get("max_buscas_por_pesquisa", 4)), modelo_reserva=reserva,
                                        max_leituras=int(leil.get("max_paginas_lidas", 0)))
@@ -292,6 +294,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--sem-ia", action="store_true", help="não chama o Claude na triagem")
     ap.add_argument("--sem-web", action="store_true", help="não faz pesquisas na web (preço novo/passagens)")
     ap.add_argument("--so-painel", action="store_true", help="só regenera o painel")
+    ap.add_argument("--forcar-leiloes", action="store_true", help="pesquisa leilões agora, mesmo antes do intervalo")
     args = ap.parse_args(argv)
 
     settings = get_settings()
@@ -309,6 +312,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             log.warning("ANTHROPIC_API_KEY ausente: rodando sem IA e sem pesquisa web.")
         robo = Robo(settings, db, regras, catalogo, passagens, client)
+        robo.forcar_leiloes = args.forcar_leiloes
         try:
             ex = robo.executar(usar_ia=not args.sem_ia, usar_web=not args.sem_web)
         except anthropic.AuthenticationError:

@@ -16,6 +16,10 @@ on:
         description: "Pular pesquisas na web (preço novo e passagens)"
         type: boolean
         default: false
+      forcar_leiloes:
+        description: "Pesquisar leilões agora (mesmo se já pesquisou hoje)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # commitar data/revenda.db e docs/index.html
@@ -46,6 +50,7 @@ jobs:
           ARGS=""
           if [ "${{ inputs.sem_ia }}" = "true" ]; then ARGS="$ARGS --sem-ia"; fi
           if [ "${{ inputs.sem_web }}" = "true" ]; then ARGS="$ARGS --sem-web"; fi
+          if [ "${{ inputs.forcar_leiloes }}" = "true" ]; then ARGS="$ARGS --forcar-leiloes"; fi
           python -m src.main $ARGS
 
       - name: Commitar banco e painel
