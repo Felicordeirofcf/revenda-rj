@@ -627,6 +627,10 @@ function nomeDoLink(u) {
     return {nome: nome.length >= 4 ? nome : null, ano: anos.length ? Math.max(...anos) : null};
   } catch (e) { return {}; }
 }
+function limparNomeVeiculo(c) {
+  // "I/AUDI Q3" (importado), "NAC/FIAT ..." -> tira o prefixo
+  return String(c || "").replace(/^\s*(?:i|imp|importado|nac|nacional)\s*[\/ ]\s*(?=[a-zà-ú])/i, "").trim();
+}
 function melhorNomeVeiculo(cands) {
   const pontua = c => {
     const n = normalizar(c);
@@ -672,7 +676,7 @@ function extrairLote(p) {
   const tituloPag = ((p.ot || p.t || "").split(/\s[|\-–—]\s/)[0] || "").trim();
   const doLink = nomeDoLink(p.u);
   const candidatos = [...(p.h1 || []), p.ot, doLink.nome, descricao.split(",")[0], (p.od || "").split(/[.,]/)[0], tituloPag, p.t]
-    .filter(Boolean).map(c => c.replace(/\//g, " ").replace(/\s+/g, " ").trim());
+    .filter(Boolean).map(c => limparNomeVeiculo(c.replace(/\//g, " ").replace(/\s+/g, " ").trim()));
   const baseNome = melhorNomeVeiculo(candidatos) || doLink.nome || tituloPag;
   if (baseNome) achados.push(`modelo: “${baseNome}”`);
   let ano = pega("ano", /ano(?:\s*(?:de\s*)?(?:fabrica[çc][ãa]o|fab\.?|modelo|fab\/mod\.?))?\s*[:\-|]?\s*((?:19|20)\d{2})(?:\s*\/\s*((?:19|20)\d{2}))?/i, m => Number(m[2] || m[1]))
@@ -750,7 +754,7 @@ function extrairLote(p) {
   if (/com\s*chave|chave\s*reserva/i.test(lx)) positivos.push("Com chave");
   if (/(?:liga|funciona)\s*e\s*anda|em\s*funcionamento/i.test(lx)) positivos.push("Liga e anda (segundo o anúncio)");
 
-  const moto = /\bmoto(?:cicleta|neta)?s?\b|\b\d{2,4}\s?cc\b|\bhonda\s+(?:cg|biz|pop|bros|xre|cb|nxr|pcx|elite|adv)\b|\byamaha\b|\b(?:fazer|factor|lander|crosser|nmax|xmax|neo|xtz|ybr|mt-?\d{2})\b|\bsuzuki\b|\bkawasaki\b|\bharley\b|\btriumph\b|\bdafra\b|\bshineray\b/i.test(lx + " " + (p.ot || p.t || "").toLowerCase() + " " + baseNome.toLowerCase());
+  const moto = /\bmoto(?:cicleta|neta)?s?\b|\b\d{2,4}\s?cc\b|\bhonda\s+(?:cg|biz|pop|bros|xre|cb|nxr|pcx|elite|adv)\b|\byamaha\b|\b(?:fazer|factor|lander|crosser|nmax|xmax|neo|xtz|ybr|mt-?\d{2})\b|\bsuzuki\b|\bkawasaki\b|\bharley\b|\btriumph\b|\bdafra\b|\bshineray\b/i.test([baseNome, descricao, doLink.nome || ""].join(" ").toLowerCase());
   if (moto) achados.push("veículo: moto");
   const host = (p.h || "").replace(/^www\./, "");
   const dom = Object.keys(NOME_LEILOEIRO).find(d => host === d || host.endsWith("." + d));
@@ -1204,16 +1208,28 @@ async function buscarFipe() {
   const l = lerCalc(form);
   if (!l.marca_modelo) { out.innerHTML = `<span class="muted">Preencha o modelo (com a marca) para buscar a FIPE.</span>`; return; }
   if (!l.ano) { out.innerHTML = `<span class="muted">Preencha o ano para buscar a FIPE.</span>`; return; }
-  const tipo = l.veiculo === "moto" ? "motos" : "carros";
   out.innerHTML = `<span class="muted">🔎 Buscando na Tabela FIPE…</span>`;
   try {
-    const marcas = await fipeGet(`/${tipo}/marcas`);
-    const marca = acharMarca(marcas, l.marca_modelo);
-    if (!marca) { out.innerHTML = `⚠️ Não reconheci a marca em “${esc(l.marca_modelo)}”. Escreva a marca no modelo (ex.: “Chevrolet Onix 1.0 LT”) ou <a href="https://veiculos.fipe.org.br/" target="_blank" rel="noopener">consulte a FIPE</a>.`; return; }
-    const lista = (await fipeGet(`/${tipo}/marcas/${marca.codigo}/modelos`)).modelos || [];
-    const rank = rankModelos(lista, l.marca_modelo, marca.nome).slice(0, 8);
-    if (!rank.length) { out.innerHTML = `⚠️ Não achei a versão de “${esc(l.marca_modelo)}” na FIPE (${esc(marca.nome)}). <a href="https://veiculos.fipe.org.br/" target="_blank" rel="noopener">Consulte a FIPE</a> e digite o valor.`; return; }
-    window._fipeOpcoes = {tipo, marca, rank, ano: l.ano};
+    const nome = limparNomeVeiculo(l.marca_modelo);
+    const ordem = l.veiculo === "moto" ? ["motos", "carros"] : ["carros", "motos"];
+    let achado = null, marcaVista = null;
+    for (const tipo of ordem) {
+      const marca = acharMarca(await fipeGet(`/${tipo}/marcas`), nome);
+      if (!marca) continue;
+      marcaVista = marcaVista || marca;
+      const lista = (await fipeGet(`/${tipo}/marcas/${marca.codigo}/modelos`)).modelos || [];
+      const rank = rankModelos(lista, nome, marca.nome).slice(0, 8);
+      if (rank.length) { achado = {tipo, marca, rank}; break; }
+    }
+    if (!achado) {
+      out.innerHTML = marcaVista
+        ? `⚠️ Não achei a versão de “${esc(nome)}” na FIPE (${esc(marcaVista.nome)}). <a href="https://veiculos.fipe.org.br/" target="_blank" rel="noopener">Consulte a FIPE</a> e digite o valor.`
+        : `⚠️ Não reconheci a marca em “${esc(nome)}”. Escreva a marca no modelo (ex.: “Chevrolet Onix 1.0 LT”) ou <a href="https://veiculos.fipe.org.br/" target="_blank" rel="noopener">consulte a FIPE</a>.`;
+      return;
+    }
+    const veiculo = achado.tipo === "motos" ? "moto" : "carro";
+    if (form.elements.veiculo.value !== veiculo) { form.elements.veiculo.value = veiculo; }
+    window._fipeOpcoes = {...achado, ano: l.ano};
     await aplicarVersaoFipe(0);
   } catch (e) {
     out.innerHTML = `⚠️ Não consegui consultar a FIPE agora (${esc(e.message)}). <a href="https://veiculos.fipe.org.br/" target="_blank" rel="noopener">Consulte a FIPE</a> e digite o valor.`;
