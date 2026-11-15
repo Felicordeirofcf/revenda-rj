@@ -758,11 +758,12 @@ function extrairLote(p) {
   const moto = /\bmoto(?:cicleta|neta)?s?\b|\b\d{2,4}\s?cc\b|\bhonda\s+(?:cg|biz|pop|bros|xre|cb|nxr|pcx|elite|adv)\b|\byamaha\b|\b(?:fazer|factor|lander|crosser|nmax|xmax|neo|xtz|ybr|mt-?\d{2})\b|\bsuzuki\b|\bkawasaki\b|\bharley\b|\btriumph\b|\bdafra\b|\bshineray\b/i.test([baseNome, descricao, doLink.nome || ""].join(" ").toLowerCase());
   if (moto) achados.push("veículo: moto");
   const host = (p.h || "").replace(/^www\./, "");
-  const dom = Object.keys(NOME_LEILOEIRO).find(d => host === d || host.endsWith("." + d));
+  const todos = {...NOME_LEILOEIRO_PROD, ...NOME_LEILOEIRO};
+  const dom = Object.keys(todos).find(d => host === d || host.endsWith("." + d));
 
   Object.assign(ficha, {
     "Lote": loteNum, "Status": status, "Data do leilão": dataLeilao ? diaMes(dataLeilao) + "/" + dataLeilao.slice(0, 4) : null, "Horário": horario,
-    "Modalidade": modalidade, "Comitente (dono)": comitente, "Leiloeiro": leiloeiroPessoa || (dom ? NOME_LEILOEIRO[dom] : host),
+    "Modalidade": modalidade, "Comitente (dono)": comitente, "Leiloeiro": leiloeiroPessoa || (dom ? todos[dom] : host),
     "Lance inicial": lanceInicial != null ? brl(lanceInicial) : null, "Maior lance": maiorLance != null ? brl(maiorLance) : null,
     "Incremento mínimo": incremento != null ? brl(incremento) : null, "Para cobrir você precisa dar": paraCobrir != null ? brl(paraCobrir) : null,
     "Lances": lancesQtd, "Comissão do leiloeiro": comissao != null ? comissao + "%" : null, "Despesas do leiloeiro": despesas != null ? brl(despesas) : null,
@@ -773,7 +774,7 @@ function extrairLote(p) {
 
   return {lote: {veiculo: moto ? "moto" : "carro", debitos: debitos || 0, marca_modelo: baseNome || tituloPag, titulo: descricao || tituloPag, ano, km, tipo,
       lance_atual: paraCobrir || 0, maior_lance: maiorLance, incremento, lance_inicial: lanceInicial, valor_fipe: fipe, reparo_estimado: 0, comissao_pct: comissao, taxas_leiloeiro: despesas || 0,
-      data_leilao: dataLeilao || "", local: local || "", leiloeiro: dom ? NOME_LEILOEIRO[dom] : host, url: p.u, condicao: descricao, alertas, fipe_fonte: fipe ? "página do lote" : ""},
+      data_leilao: dataLeilao || "", local: local || "", leiloeiro: dom ? todos[dom] : host, url: p.u, condicao: descricao, alertas, fipe_fonte: fipe ? "página do lote" : ""},
     achados, ficha, pares: pares.slice(0, 60), positivos, tipoProvavel, confiavel: !!dom, host,
     concorrencia: {visitas: numBR(visitas), curtidas: numBR(curtidas), lances: numBR(lancesQtd), subiu: lanceInicial && maiorLance ? (maiorLance / lanceInicial - 1) * 100 : null}};
 }
@@ -1006,6 +1007,7 @@ function renderLeiloes() {
 
 
 // ---------------------------------------------------------------- leilões: sites e calculadora
+const NOME_LEILOEIRO_PROD = Object.fromEntries((DADOS.leilao_produtos?.sites || []).map(x => { try { return [new URL(x.url).hostname.replace(/^www\./, ""), x.nome]; } catch (e) { return [x.url, x.nome]; } }));
 const NOME_LEILOEIRO = {"copart.com.br": "Copart", "sodresantoro.com.br": "Sodré Santoro", "freitasleiloeiro.com.br": "Freitas Leiloeiro",
   "vipleiloes.com.br": "VIP Leilões", "megaleiloes.com.br": "Mega Leilões", "superbid.net": "Superbid", "pestanaleiloes.com.br": "Pestana Leilões",
   "palaciodosleiloes.com.br": "Palácio dos Leilões", "mgl.com.br": "MGL Leilões"};
@@ -1024,7 +1026,7 @@ function blocoColarLink() {
   return `<h2>🔗 Analisar um lote pelo link</h2>
     <div class="card" style="padding:16px">
       <form id="form-link-lote" class="filtros" style="margin:0">
-        <input name="link" type="url" required placeholder="Cole aqui o link do lote (ex.: https://www.copart.com.br/lot/...)" style="flex:1;min-width:240px">
+        <input name="link" type="url" required placeholder="Cole aqui o link do lote ou da lista de lotes" style="flex:1;min-width:240px">
         <button class="btn primario" type="submit">Abrir lote</button>
       </form>
       <p class="mini" style="margin:10px 0 0">O lote abre numa aba nova. Quando a página carregar, clique no favorito <b>📥 Analisar no Revenda RJ</b> lá: ele lê o lote e volta aqui com a calculadora preenchida e o veredito. (O painel não consegue ler outro site sozinho: o navegador bloqueia por segurança.)</p>
@@ -1310,8 +1312,9 @@ function extrairProduto(p) {
   const freteM = x.match(/(?:frete|entrega|envio|transporte)\s*(?:\(?\s*estimad[oa]\s*\)?)?\s*[:|]?[^\n]{0,30}?R\$\s*([\d.]+(?:,\d{2})?)/i);
   const temEntrega = !!freteM || /envio\s*(?:pelos\s*)?correios|enviamos|entregamos|entrega\s*(?:em\s*todo|para\s*todo|a\s*domic[ií]lio|dispon[ií]vel)|frete\s*gr[áa]tis|calcul(?:e|ar)\s*(?:o\s*)?frete|transportadora\s*parceira/i.test(lxp);
   const freteGratis = /frete\s*gr[áa]tis/i.test(lxp);
+  const freteDepois = /(?:cota[çc][ãa]o|valor(?:es)?)\s*(?:de|do)\s*(?:frete|envio)[^\n]{0,80}ap[óo]s\s*(?:o\s*)?(?:pagamento|confirma)|ap[óo]s\s*(?:confirmad[oa]\s*)?(?:o\s*)?(?:dep[óo]sito|pagamento)[^\n]{0,80}(?:frete|envio)/i.test(lxp);
   const somenteRetirada = /somente\s*retirada|n[ãa]o\s*(?:fazemos|realizamos|h[áa])\s*(?:entrega|envio)|retirada\s*obrigat[óo]ria/i.test(lxp);
-  const entrega = somenteRetirada ? {modo: "retirada"} : temEntrega ? {modo: "entrega", frete: freteGratis ? 0 : freteM ? numBR(freteM[1]) : null, gratis: freteGratis} : {modo: "retirada"};
+  const entrega = somenteRetirada ? {modo: "retirada"} : (temEntrega || freteDepois) ? {modo: "entrega", frete: freteGratis ? 0 : freteM ? numBR(freteM[1]) : null, gratis: freteGratis, depois: freteDepois} : {modo: "retirada"};
   if (entrega.modo === "entrega") L.positivos.push(entrega.gratis ? "Frete grátis" : entrega.frete != null ? `Leiloeiro entrega (frete ${brl(entrega.frete)})` : "Leiloeiro entrega (calcule o frete no site)");
   if (somenteRetirada) alertas.push("Somente retirada no local (sem entrega)");
   if (foraRJ && entrega.modo === "retirada") alertas.push("Retirada fora do RJ: inclua a viagem ou um frete contratado no transporte");
@@ -1401,7 +1404,7 @@ function blocoProdLido() {
   const ficha = Object.entries(P.ficha).filter(([k]) => !fichaVeic.has(k));
   return `<div id="aviso-prod" class="aviso exemplo-aviso">
     <b>Lido de ${esc(P.host)}</b>: ${esc(P.desc || "?")}${P.spec.length ? ` · <b>${esc(P.spec.join(" · "))}</b>` : ""}
-    ${P.lista.length ? "" : `<div style="margin-top:6px">🚚 ${P.entrega.modo === "entrega" ? `<b>Entrega pelo leiloeiro</b>${P.entrega.gratis ? " · frete grátis" : P.entrega.frete != null ? ` · frete ${brl(P.entrega.frete)} (já entra na conta)` : " · o valor do frete não aparece na página: calcule no site (CEP) e digite na calculadora"}` : `<b>Retirada no pátio</b>${P.lote.local ? ": " + esc(P.lote.local) : ""}`}</div>`}
+    ${P.lista.length ? "" : `<div style="margin-top:6px">🚚 ${P.entrega.modo === "entrega" ? `<b>Entrega pelo leiloeiro</b>${P.entrega.gratis ? " · frete grátis" : P.entrega.frete != null ? ` · frete ${brl(P.entrega.frete)} (já entra na conta)` : (P.entrega.depois ? " · o frete só é cotado <b>depois do pagamento</b>: estime pelo CEP" : " · o valor do frete não aparece na página: calcule no site (CEP)") + ` (<a href="https://melhorenvio.com.br/calculadora" target="_blank" rel="noopener">calcular frete ↗</a>) e digite na calculadora`}` : `<b>Retirada no pátio</b>${P.lote.local ? ": " + esc(P.lote.local) : ""}`}</div>`}
     ${P.lista.length ? "" : `<div style="margin-top:6px">📦 Quantidade: <b>${P.quantidade}</b>${P.quantidadeLida ? "" : " (não achei no texto: confira)"}${P.sugestao ? ` · 💡 Preço de usado sugerido: <b>${brl(P.sugestao.preco)}</b> (${esc(P.sugestao.nome)}, ${P.sugestao.fonte === "web" ? "pesquisa web" : "anúncios"})` : ""}</div>`}
     ${P.alertas.length ? `<div style="margin-top:6px">⚠️ <b>Atenção:</b><ul style="margin:4px 0 0">${P.alertas.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}
     ${P.positivos.length ? `<div style="margin-top:6px">👍 ${P.positivos.map(esc).join(" · ")}</div>` : ""}
@@ -1507,6 +1510,17 @@ function cardProd(d, exemplo = false) {
       <div class="acoes">${link ? `<a class="btn primario" ${link}>Ver lote ↗</a>` : ""}${exemplo ? "" : `<button class="btn" data-remover-prod="${esc(d.id)}">🗑️ Remover</button>`}</div>
     </div></article>`;
 }
+function blocoSitesProdutos() {
+  const sites = DADOS.leilao_produtos?.sites || [];
+  if (!sites.length) return "";
+  const envia = sites.filter(x => x.entrega === "envia"), edital = sites.filter(x => x.entrega !== "envia");
+  const chip = x => `<a class="btn" href="${urlSegura(x.url)}" target="_blank" rel="noopener" ${x.nota ? `data-tip="${esc(x.nota)}"` : ""}>${esc(x.nome)} ↗</a>`;
+  return `<h2>🏛️ Sites de leilão de produtos</h2>
+    ${envia.length ? `<p class="muted" style="margin:0 0 6px">🚚 <b>Com envio do produto</b> (frete pago pelo arrematante, salvo aviso):</p><div class="chips">${envia.map(chip).join("")}</div>` : ""}
+    <p class="muted" style="margin:12px 0 6px">📄 <b>Envio conforme o edital</b>: muitos enviam por Correios/transportadora e só cotam o frete depois do pagamento. Confira as "condições de venda" do leilão:</p>
+    <div class="chips">${edital.map(chip).join("")}<a class="btn primario" href="https://melhorenvio.com.br/calculadora" target="_blank" rel="noopener">Calcular frete pelo CEP ↗</a></div>
+    <p class="mini">Edite a lista em <code>config/regras.yaml</code> → <code>leilao_produtos.sites</code> (marque <code>entrega: "envia"</code> quando confirmar que um site entrega).</p>`;
+}
 function renderLeilaoProdutos() {
   const meus = estado.lotesProdutos || [];
   const ex = mostrarExemplo("leilao-produtos", meus.length > 0 || !!estado.prodLido);
@@ -1528,7 +1542,7 @@ function renderLeilaoProdutos() {
   return `<div class="filtros"><p class="muted" style="flex:1;margin:0">Notebooks, celulares, eletrônicos e outros lotes de leilão. Abra o lote (ou a lista de lotes) no site do leiloeiro e clique no favorito <b>📥 Analisar no Revenda RJ</b>: o painel lê quantidade, lances, comissão, despesas e retirada; você confere o preço de usado de cada unidade e vê se vale a pena.</p>${botaoExemplo("leilao-produtos", ex)}</div>`
     + (ex ? avisoExemplo("Lote de 3 notebooks como o do seu print.") + `<div class="grade">${cardProd(EXEMPLO_PROD, true)}</div>` : "")
     + (estado.prodLido ? "" : `<details class="card" style="padding:10px 14px;margin:10px 0"><summary>📥 Instalar o favorito (para ler lotes e listas de lotes)</summary>${blocoInstalarFavorito()}</details>`)
-    + blocoProdLido() + blocoCalcProd()
+    + blocoColarLink() + blocoProdLido() + blocoCalcProd() + blocoSitesProdutos()
     + (meus.length ? `<h2>⭐ Meus lotes de produtos (${meus.length})</h2><div class="grade">${meus.map(d => cardProd(d)).join("")}</div>` : "")
     + `<details class="guia"><summary><h2 style="display:inline">📘 Como lucrar com leilão de produtos</h2></summary>
       <ul><li><b>Lotes com várias unidades</b> (ex.: 3 notebooks) diluem custos fixos: compare sempre o <b>custo por unidade</b> com o preço de usado.</li>

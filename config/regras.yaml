@@ -183,3 +183,20 @@ leilao_produtos:
   dias_para_vender: 30
   margem_min_pct: 25               # produto de leilão é mais arriscado que veículo
   pessimista: {preco_menor_pct: 15, defeito_extra_pct: 15}
+  # Sites de leilão de produtos (aba "Leilão de produtos").
+  #   entrega: "envia" = envio de produtos confirmado (frete pago pelo arrematante, salvo aviso)
+  #            "edital" = depende de cada leilão: veja as condições de venda (muitos enviam por Correios/
+  #                       transportadora e só cotam o frete depois do pagamento)
+  sites:
+    - {nome: "Superbid / Loja Sold Leilões", url: "https://www.superbid.net", entrega: "envia", nota: "Leilões de logística reversa com entrega do produto"}
+    - {nome: "Mega Leilões (eletrônicos)", url: "https://www.megaleiloes.com.br/bens-de-consumo/eletronicos", entrega: "edital"}
+    - {nome: "Grupo Lance (eletrônicos)", url: "https://www.grupolance.com.br/bens-de-consumo/eletronicos", entrega: "edital"}
+    - {nome: "Plaza Leilões (informática)", url: "https://www.plazaleiloes.com.br", entrega: "edital"}
+    - {nome: "Bolsa de Leilões", url: "https://www.bolsadeleiloes.com.br", entrega: "edital"}
+    - {nome: "Leilão Prime", url: "https://www.leilaoprime.com.br", entrega: "edital"}
+    - {nome: "Tudo Leilão", url: "https://tudoleilao.com.br", entrega: "edital"}
+    - {nome: "Golden Lance", url: "https://www.goldenlance.com.br", entrega: "edital"}
+    - {nome: "Nosso Leilão", url: "https://www.nossoleilao.com.br", entrega: "edital"}
+    - {nome: "e-Leiloeiro", url: "https://www.e-leiloeiro.leilao.br", entrega: "edital"}
+    - {nome: "Freitas Leiloeiro", url: "https://www.freitasleiloeiro.com.br", entrega: "edital", nota: "Bens diversos: entrega agendada em alguns leilões"}
+    - {nome: "Sodré Santoro", url: "https://www.sodresantoro.com.br", entrega: "edital"}
