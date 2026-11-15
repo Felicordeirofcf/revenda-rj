@@ -833,7 +833,7 @@ function renderLeiloes() {
   if (L.config && L.config.ativa === false && !L.lotes.length) {
     const cfg = CFG_LEIL();
     const meus = lotesManuais();
-    setTimeout(() => { atualizarCalc(); { const L = loteLido(); if (L) preencherCalc(L.lote); } }, 0);
+    setTimeout(() => { atualizarCalc(); { const L = loteLido(); if (L) { preencherCalc(L.lote); if (!L.lote.valor_fipe && L.lote.ano && !estado.loteLido.fipeTentada) { estado.loteLido.fipeTentada = true; salvar(); buscarFipe(); } } } }, 0);
     return `<p class="muted">Carros e motos de leilão. Os sites de leilão só mostram os lotes no seu navegador: cole o link do lote ou abra um leiloeiro abaixo, filtre por <b>veículos</b> e <b>RJ</b>, e jogue o veículo que gostou na calculadora: ela faz a conta completa e diz até quanto vale dar de lance. Lance máximo configurado: <b>${brl(cfg.lance_max)}</b>.</p>`
       + blocoColarLink() + blocoLoteLido() + blocoCalculadora() + blocoSitesLeilao()
       + (meus.length ? `<h2>⭐ Meus lotes (${meus.length})</h2><div class="grade">${meus.map(l => cardLote(l)).join("")}</div>` : "")
@@ -851,7 +851,7 @@ function renderLeiloes() {
   const meus = lotesManuais();
   if (meus.length) html += `<h2>⭐ Meus lotes (${meus.length})</h2><div class="grade">${meus.map(l => cardLote(l)).join("")}</div>`;
   html += blocoColarLink() + blocoLoteLido() + blocoCalculadora() + blocoSitesLeilao();
-  setTimeout(() => { atualizarCalc(); { const L = loteLido(); if (L) preencherCalc(L.lote); } }, 0);
+  setTimeout(() => { atualizarCalc(); { const L = loteLido(); if (L) { preencherCalc(L.lote); if (!L.lote.valor_fipe && L.lote.ano && !estado.loteLido.fipeTentada) { estado.loteLido.fipeTentada = true; salvar(); buscarFipe(); } } } }, 0);
   return html + guiaLeilao();
 }
 
@@ -882,14 +882,19 @@ function blocoColarLink() {
       <details class="mini" style="margin-top:6px"><summary>Ainda não tem o favorito?</summary>${blocoInstalarFavorito()}</details>
     </div>`;
 }
-const loteLido = () => estado.loteLido?.bruto ? extrairLote(estado.loteLido.bruto) : null;
+const loteLido = () => {
+  if (!estado.loteLido?.bruto) return null;
+  const L = extrairLote(estado.loteLido.bruto);
+  if (!L.lote.valor_fipe && estado.loteLido.fipe) { L.lote.valor_fipe = estado.loteLido.fipe; L.lote.fipe_fonte = estado.loteLido.fipeFonte || "tabela FIPE"; L.achados.push(`FIPE (busca automática): ${brl(estado.loteLido.fipe)}`); }
+  return L;
+};
 function blocoLoteLido() {
   const L = loteLido(); if (!L) return "";
   const cfg = CFG_LEIL(), c = contaLoteJs(L.lote, cfg), sit = situacaoLote(L.lote, c, cfg);
   const falta = [!L.lote.lance_atual && "lance", !L.lote.valor_fipe && "FIPE", !L.lote.ano && "ano"].filter(Boolean);
-  const veredito = falta.length ? `<b>Faltou ler: ${falta.join(", ")}.</b> Complete na calculadora abaixo (a FIPE você acha no botão "Consultar FIPE").`
+  const veredito = falta.length ? `<b>Faltou ler: ${falta.join(", ")}.</b> ${falta.includes("FIPE") && L.lote.ano ? "Buscando a FIPE automaticamente na calculadora abaixo." : "Complete na calculadora abaixo."}`
     : vereditoLote(c, cfg, sit, L.lote);
-  return `<div class="aviso exemplo-aviso" style="border-left-color:${sit === "lucro" && !falta.length ? "var(--good)" : "var(--warning)"}">
+  return `<div id="aviso-lote" class="aviso exemplo-aviso" style="border-left-color:${sit === "lucro" && !falta.length ? "var(--good)" : "var(--warning)"}">
     <b>Lote lido de ${esc(L.host)}</b>${L.confiavel ? "" : " ⚠️ (site fora da lista de leiloeiros conhecidos: confira a matrícula na Junta Comercial)"}: ${esc(L.lote.marca_modelo || "?")}<br>${veredito}
     ${L.lote.alertas.length ? `<div style="margin-top:6px">⚠️ <b>Atenção:</b> ${L.lote.alertas.map(esc).join(" · ")}</div>` : ""}
     <details style="margin-top:6px"><summary>O que foi lido da página</summary><ul>${L.achados.map(a => `<li>${esc(a)}</li>`).join("") || "<li>nada reconhecido</li>"}</ul>
@@ -920,7 +925,7 @@ function blocoCalculadora() {
         <label>Km<input name="km" type="number" min="0" placeholder="80000"></label>
         <label>Tipo do lote<select name="tipo">${tipos}</select></label>
         <label>Lance (R$)<input name="lance_atual" type="number" min="0" step="100" required placeholder="25000"></label>
-        <label>FIPE (R$)<input name="valor_fipe" type="number" min="0" step="100" required placeholder="48000"></label>
+        <label>FIPE (R$)<span style="display:flex;gap:6px"><input name="valor_fipe" type="number" min="0" step="1" required placeholder="48000"><button class="btn" type="button" data-buscar-fipe title="Buscar na Tabela FIPE">🔎</button></span></label>
         <label>Reparo estimado (R$)<input name="reparo_estimado" type="number" min="0" step="100" value="0"></label>
         <label>Débitos: IPVA, multas (R$)<input name="debitos" type="number" min="0" step="50" value="0"></label>
         <label>Dias para revender<input name="dias_venda" type="number" min="1" max="365" placeholder="30"></label>
@@ -929,6 +934,7 @@ function blocoCalculadora() {
         <label>Leiloeiro<input name="leiloeiro" placeholder="Copart"></label>
         <label class="largo">Link do lote<input name="url" type="url" placeholder="https://..."></label>
       </div>
+      <div id="fipe-res" class="mini" aria-live="polite" style="margin-top:10px">💡 A FIPE é buscada sozinha quando você preenche marca/modelo e ano (ou toque em <b>🔎</b>).</div>
       <div class="calc-res" id="calc-res" aria-live="polite"></div>
       <div class="acoes"><button class="btn primario" type="submit">Salvar na minha lista</button><button class="btn" type="reset">Limpar</button></div>
     </form>`;
@@ -939,7 +945,8 @@ function lerCalc(form) {
   return {veiculo: f.veiculo, marca_modelo: f.marca_modelo.trim(), titulo: f.marca_modelo.trim(), ano: num(f.ano), km: num(f.km), tipo: f.tipo,
     lance_atual: num(f.lance_atual) || 0, valor_fipe: num(f.valor_fipe), reparo_estimado: num(f.reparo_estimado) || 0,
     debitos: num(f.debitos) || 0, dias_venda: num(f.dias_venda),
-    data_leilao: f.data_leilao || "", local: f.local.trim(), leiloeiro: f.leiloeiro.trim(), url: f.url.trim(), condicao: "", alertas: [], fipe_fonte: "você"};
+    data_leilao: f.data_leilao || "", local: f.local.trim(), leiloeiro: f.leiloeiro.trim(), url: f.url.trim(), condicao: "", alertas: [],
+    fipe_fonte: form.elements.valor_fipe.dataset.fonte || "você"};
 }
 function atualizarCalc() {
   const form = document.getElementById("calc-lote"); if (!form) return;
@@ -950,7 +957,11 @@ function atualizarCalc() {
   out.innerHTML = `<h3 style="margin:14px 0 8px">📊 Análise completa <span class="pill"><span class="dot" style="background:${cor}"></span>${rot}</span></h3>
     ${painelAnalise(c, cfg, sit)}<p style="margin:10px 0 0">${vereditoLote(c, cfg, sit, l)}</p>`;
 }
-document.addEventListener("input", e => { if (e.target.closest?.("#calc-lote")) atualizarCalc(); });
+document.addEventListener("input", e => {
+  if (!e.target.closest?.("#calc-lote")) return;
+  if (e.target.name === "valor_fipe") delete e.target.dataset.fonte;
+  atualizarCalc();
+});
 document.addEventListener("change", e => { if (e.target.closest?.("#calc-lote")) atualizarCalc(); });
 document.addEventListener("reset", e => { if (e.target.id === "calc-lote") setTimeout(atualizarCalc, 0); });
 document.addEventListener("submit", e => {
@@ -961,6 +972,111 @@ document.addEventListener("submit", e => {
   l.id = "manual-" + Date.now();
   (estado.lotesManuais ||= []).unshift(l); delete estado.loteLido; salvar(); render();
 });
+
+
+// ---------------------------------------------------------------- FIPE automática (API pública parallelum)
+// Consulta feita pelo SEU navegador (sem chave). Fonte: Tabela FIPE oficial, repassada pela API parallelum.com.br.
+const FIPE_API = "https://parallelum.com.br/fipe/api/v1";
+const fipeCache = {};
+async function fipeGet(caminho) {
+  if (fipeCache[caminho]) return fipeCache[caminho];
+  const r = await fetch(FIPE_API + caminho);
+  if (r.status === 429) throw new Error("limite de consultas da API FIPE atingido; tente em alguns minutos");
+  if (!r.ok) throw new Error("API FIPE respondeu HTTP " + r.status);
+  return (fipeCache[caminho] = await r.json());
+}
+const ALIAS_MARCA = {chevrolet: "gm", chevy: "gm", gm: "gm", volkswagen: "vw", volks: "vw", vw: "vw", mercedes: "mercedes", benz: "mercedes",
+  "land": "land", rover: "land", citroen: "citroen", peugeot: "peugeot", caoa: "caoa", chery: "chery", harley: "harley", royal: "royal"};
+const tokensFipe = t => normalizar(t).replace(/\b(19|20)\d{2}(\/(19|20)\d{2})?\b/g, " ").replace(/[^a-z0-9.]/g, " ").split(/\s+/).filter(w => w.length >= 1 && !["flex", "mec", "aut", "p", "v", "c", "de", "da", "do"].includes(w));
+function acharMarca(marcas, texto) {
+  const tk = tokensFipe(texto);
+  let melhor = null, pts = 0;
+  for (const m of marcas) {
+    const nome = normalizar(m.nome).replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(Boolean);
+    let p = 0;
+    for (const w of tk) { const a = ALIAS_MARCA[w] || w; if (nome.includes(a) || nome.includes(w)) p += 2; }
+    if (p > pts) { pts = p; melhor = m; }
+  }
+  return melhor;
+}
+function rankModelos(modelos, texto, marcaNome) {
+  const marca = new Set(normalizar(marcaNome).replace(/[^a-z0-9 ]/g, " ").split(/\s+/));
+  const tk = tokensFipe(texto).filter(w => !marca.has(ALIAS_MARCA[w] || w) && !marca.has(w));
+  return modelos.map(m => {
+    const nm = tokensFipe(m.nome);
+    let p = 0;
+    tk.forEach((w, i) => { if (nm.includes(w)) p += (i === 0 ? 3 : /\d/.test(w) ? 2 : 1); });
+    return {...m, p: p - nm.length * 0.05};
+  }).filter(m => m.p > 0).sort((a, b) => b.p - a.p);
+}
+function escolherAno(anos, ano) {
+  if (!anos.length) return null;
+  const doAno = anos.filter(a => String(a.codigo).startsWith(String(ano)) || String(a.nome).startsWith(String(ano)));
+  if (doAno.length) return doAno.find(a => /-1$/.test(a.codigo) || /gasolina|flex/i.test(a.nome)) || doAno[0];
+  // ano não existe para a versão: pega o mais próximo
+  const n = a => parseInt(a.codigo, 10) > 3000 ? 9999 : parseInt(a.codigo, 10);
+  return [...anos].sort((a, b) => Math.abs(n(a) - ano) - Math.abs(n(b) - ano))[0];
+}
+async function valorFipe(tipo, marca, modelo, ano) {
+  const anos = await fipeGet(`/${tipo}/marcas/${marca.codigo}/modelos/${modelo.codigo}/anos`);
+  const a = escolherAno(anos, ano);
+  if (!a) throw new Error("sem anos para esta versão");
+  const v = await fipeGet(`/${tipo}/marcas/${marca.codigo}/modelos/${modelo.codigo}/anos/${a.codigo}`);
+  return {valor: numBR(v.Valor), ano: a.nome, ref: v.MesReferencia || "", codigo: v.CodigoFipe || "", modelo: v.Modelo || modelo.nome, exato: String(a.codigo).startsWith(String(ano))};
+}
+async function buscarFipe() {
+  const form = document.getElementById("calc-lote"), out = document.getElementById("fipe-res");
+  if (!form || !out) return;
+  const l = lerCalc(form);
+  if (!l.marca_modelo) { out.innerHTML = `<span class="muted">Preencha o modelo (com a marca) para buscar a FIPE.</span>`; return; }
+  if (!l.ano) { out.innerHTML = `<span class="muted">Preencha o ano para buscar a FIPE.</span>`; return; }
+  const tipo = l.veiculo === "moto" ? "motos" : "carros";
+  out.innerHTML = `<span class="muted">🔎 Buscando na Tabela FIPE…</span>`;
+  try {
+    const marcas = await fipeGet(`/${tipo}/marcas`);
+    const marca = acharMarca(marcas, l.marca_modelo);
+    if (!marca) { out.innerHTML = `⚠️ Não reconheci a marca em “${esc(l.marca_modelo)}”. Escreva a marca no modelo (ex.: “Chevrolet Onix 1.0 LT”) ou <a href="https://veiculos.fipe.org.br/" target="_blank" rel="noopener">consulte a FIPE</a>.`; return; }
+    const lista = (await fipeGet(`/${tipo}/marcas/${marca.codigo}/modelos`)).modelos || [];
+    const rank = rankModelos(lista, l.marca_modelo, marca.nome).slice(0, 8);
+    if (!rank.length) { out.innerHTML = `⚠️ Não achei a versão de “${esc(l.marca_modelo)}” na FIPE (${esc(marca.nome)}). <a href="https://veiculos.fipe.org.br/" target="_blank" rel="noopener">Consulte a FIPE</a> e digite o valor.`; return; }
+    window._fipeOpcoes = {tipo, marca, rank, ano: l.ano};
+    await aplicarVersaoFipe(0);
+  } catch (e) {
+    out.innerHTML = `⚠️ Não consegui consultar a FIPE agora (${esc(e.message)}). <a href="https://veiculos.fipe.org.br/" target="_blank" rel="noopener">Consulte a FIPE</a> e digite o valor.`;
+  }
+}
+const loteLidoTemFipeDaPagina = () => { try { return !!extrairLote(estado.loteLido.bruto).lote.valor_fipe; } catch (e) { return false; } };
+async function aplicarVersaoFipe(i) {
+  const o = window._fipeOpcoes, out = document.getElementById("fipe-res"), form = document.getElementById("calc-lote");
+  if (!o || !out || !form) return;
+  out.innerHTML = `<span class="muted">🔎 Buscando o valor…</span>`;
+  try {
+    const r = await valorFipe(o.tipo, o.marca, o.rank[i], o.ano);
+    if (!r.valor) throw new Error("valor não informado");
+    form.elements.valor_fipe.value = Math.round(r.valor);
+    form.elements.valor_fipe.dataset.fonte = `tabela FIPE ${r.ref}`.trim();
+    if (estado.loteLido && !loteLidoTemFipeDaPagina()) {
+      estado.loteLido.fipe = Math.round(r.valor); estado.loteLido.fipeFonte = form.elements.valor_fipe.dataset.fonte; salvar();
+      const av = document.getElementById("aviso-lote"); if (av) av.outerHTML = blocoLoteLido();
+    }
+    out.innerHTML = `✅ <b>FIPE ${brl(r.valor)}</b> · ${esc(r.modelo)} · ${esc(r.ano)}${r.exato ? "" : " <b>(ano mais próximo encontrado)</b>"}${r.ref ? " · ref. " + esc(r.ref) : ""}
+      <label class="mini" style="display:flex;gap:6px;align-items:center;margin-top:6px">Versão errada? <select id="fipe-versao">${o.rank.map((m, k) => `<option value="${k}" ${k === i ? "selected" : ""}>${esc(m.nome)}</option>`).join("")}</select></label>`;
+    atualizarCalc();
+  } catch (e) {
+    out.innerHTML = `⚠️ Não consegui o valor desta versão (${esc(e.message)}). Escolha outra: <select id="fipe-versao">${o.rank.map((m, k) => `<option value="${k}" ${k === i ? "selected" : ""}>${esc(m.nome)}</option>`).join("")}</select>`;
+  }
+}
+document.addEventListener("change", e => { if (e.target.id === "fipe-versao") aplicarVersaoFipe(Number(e.target.value)); });
+let _fipeAuto;
+document.addEventListener("change", e => {
+  const form = e.target.closest?.("#calc-lote");
+  if (!form || !["marca_modelo", "ano", "veiculo"].includes(e.target.name)) return;
+  const fipeAuto = form.elements.valor_fipe.dataset.fonte?.startsWith("tabela FIPE");
+  if (form.elements.marca_modelo.value.trim() && form.elements.ano.value && (!form.elements.valor_fipe.value || fipeAuto)) {
+    clearTimeout(_fipeAuto); _fipeAuto = setTimeout(buscarFipe, 300);
+  }
+});
+document.addEventListener("click", e => { if (e.target.closest("[data-buscar-fipe]")) { e.preventDefault(); buscarFipe(); } });
 
 // ---------------------------------------------------------------- aba Hoje
 function renderHoje() {
