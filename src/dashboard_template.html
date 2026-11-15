@@ -99,6 +99,9 @@ h2 { font-size: 17px; margin: 22px 0 10px; }
 .spark text { font-size: 10px; fill: var(--text-3); }
 .spark .pt:hover { r: 6; }
 .oculto { display: none !important; }
+.card.exemplo { border: 2px dashed var(--accent); }
+.exemplo-aviso { border-left-color: var(--accent); margin-bottom: 14px; }
+.foto .pill.exemplo-pill, .pill.exemplo-pill { background: var(--accent); color: #fff; }
 .tip { position: fixed; pointer-events: none; background: var(--text); color: var(--surface); padding: 4px 8px; border-radius: 6px; font-size: 12px; z-index: 50; }
 @media (max-width: 520px) { .grade { grid-template-columns: 1fr; } header, main { padding-left: 12px; padding-right: 12px; } }
 </style>
@@ -328,61 +331,131 @@ function renderListaAnuncios(situacao, explicacao) {
   return html;
 }
 
+// ---------------------------------------------------------------- exemplos
+// Cards ilustrativos (valores fictícios) para ver como as abas ficam antes dos dados reais chegarem.
+const horasAtras = h => new Date(Date.now() - h * 3600000).toISOString();
+const diasAtras = d => horasAtras(d * 24);
+const EXEMPLO_PRODUTOS = [
+  {id: "ex-iphone-13", nome: "iPhone 13", categoria: "celular", oportunidades: 2, observacao: 3, horas_mediana_sumir: 6,
+   ref: {mediana: 2350, p25: 2200, p75: 2500, menor: 1900, n: 34},
+   variantes: {"128GB": {mediana: 2300, p25: 2180, p75: 2420, n: 25}, "256GB": {mediana: 2650, p25: 2500, p75: 2790, n: 9}},
+   novo: {pesquisado_em: horasAtras(30), preco_usado_tipico: 2400, resumo: "Ainda vendido novo em lojas grandes; o preço caiu cerca de 8% desde o lançamento do iPhone 17.",
+          ofertas: [{loja: "Amazon", preco: 3899, observacao: "no Pix"}, {loja: "Magazine Luiza", preco: 3999, observacao: ""}, {loja: "Casas Bahia", preco: 4099, observacao: "10x sem juros"}]}},
+  {id: "ex-ps5", nome: "PlayStation 5", categoria: "console", oportunidades: 1, observacao: 1, horas_mediana_sumir: 11,
+   ref: {mediana: 2800, p25: 2650, p75: 2950, menor: 2300, n: 41}, variantes: {},
+   novo: {pesquisado_em: horasAtras(52), preco_usado_tipico: 2850, resumo: "PS5 Slim com leitor em promoção frequente; a versão digital sai cerca de R$ 400 mais barata.",
+          ofertas: [{loja: "Kabum", preco: 3599, observacao: "no Pix"}, {loja: "Mercado Livre (loja oficial)", preco: 3699, observacao: ""}, {loja: "Fast Shop", preco: 3799, observacao: ""}]}},
+  {id: "ex-switch-oled", nome: "Nintendo Switch OLED", categoria: "console", oportunidades: 0, observacao: 2, horas_mediana_sumir: null,
+   ref: {mediana: 1750, p25: 1650, p75: 1850, menor: 1400, n: 18}, variantes: {},
+   novo: {pesquisado_em: horasAtras(70), preco_usado_tipico: 1700, resumo: "Novo em promoção perto de R$ 1.900; com o Switch 2 no mercado, o usado perdeu valor.",
+          ofertas: [{loja: "Amazon", preco: 1899, observacao: "no Pix"}, {loja: "Americanas", preco: 1999, observacao: ""}]}},
+];
+const EXEMPLO_PASSAGENS = [
+  {id: "ex-nordeste", nome: "Maceió ou Recife em janeiro", destinos: ["Maceió (MCZ)", "Recife (REC)"], periodo: "janeiro de 2027",
+   min_dias: 7, max_dias: 12, preco_alvo: 900, ativa: true,
+   historico: [1180, 1120, 1065, 1040, 990, 960, 905, 868].map((preco, i) => ({t: diasAtras(7 - i), preco})),
+   ultima: {pesquisado_em: horasAtras(3), resumo: "Janeiro é alta temporada; abaixo de R$ 900 ida e volta é um bom preço. A tendência da semana é de queda.",
+            voos: [{destino: "Maceió (MCZ)", ida: "2027-01-12", volta: "2027-01-20", preco: 868, companhia: "GOL", escalas: "direto", fonte: "Google Flights"},
+                   {destino: "Recife (REC)", ida: "2027-01-09", volta: "2027-01-17", preco: 915, companhia: "Azul", escalas: "1 escala", fonte: "Kayak"},
+                   {destino: "Maceió (MCZ)", ida: "2027-01-19", volta: "2027-01-28", preco: 942, companhia: "LATAM", escalas: "direto", fonte: "Decolar"}]}},
+  {id: "ex-sp", nome: "São Paulo no feriado", destinos: ["São Paulo (GRU ou CGH)"], periodo: "Carnaval de 2027",
+   min_dias: 3, max_dias: 5, preco_alvo: 350, ativa: true,
+   historico: [420, 445, 470, 455, 480].map((preco, i) => ({t: diasAtras(5 - i), preco})),
+   ultima: {pesquisado_em: horasAtras(5), resumo: "Feriado prolongado puxa os preços para cima; vale esperar promoções de terça-feira.",
+            voos: [{destino: "São Paulo (CGH)", ida: "2027-02-05", volta: "2027-02-10", preco: 480, companhia: "LATAM", escalas: "direto", fonte: "Google Flights"},
+                   {destino: "São Paulo (GRU)", ida: "2027-02-06", volta: "2027-02-10", preco: 512, companhia: "GOL", escalas: "direto", fonte: "Skyscanner"}]}},
+];
+const SELO_EXEMPLO = `<span class="pill exemplo-pill">🧪 EXEMPLO · valores ilustrativos</span>`;
+
+// Mostra os exemplos quando a aba ainda não tem dados reais (ou quando o usuário pede).
+function mostrarExemplo(aba, temDadosReais) {
+  const escolha = (estado.exemplos ||= {})[aba];
+  return escolha === undefined ? !temDadosReais : escolha;
+}
+function botaoExemplo(aba, visivel) {
+  return `<button class="btn" data-alternar-exemplo="${aba}">${visivel ? "🙈 Esconder exemplo" : "🧪 Ver exemplo"}</button>`;
+}
+function avisoExemplo(texto) {
+  return `<div class="aviso exemplo-aviso">🧪 <b>Exemplo.</b> ${texto} Os valores são fictícios e servem só para mostrar como a aba fica.</div>`;
+}
+
+function cardProduto(p, exemplo = false) {
+  const novo = p.novo;
+  const ofertas = (novo?.ofertas || []).slice(0, 4);
+  const novoMin = ofertas.length ? Math.min(...ofertas.map(o => o.preco)) : null;
+  const teto = novoMin && p.ref && p.ref.mediana > novoMin * 0.9
+    ? `<div class="mini">⚠️ Usado está perto do preço do novo: margem de revenda apertada.</div>` : "";
+  const link = o => exemplo ? `<a href="#" data-exemplo-link>` : `<a href="${urlSegura(o.url)}" target="_blank" rel="noopener">`;
+  return `<article class="card ${exemplo ? "exemplo" : ""}">
+    <div class="foto">${p.foto ? `<img src="${urlSegura(p.foto)}" alt="Foto de ${esc(p.nome)}" loading="lazy" referrerpolicy="no-referrer" ${imgFallback(p.categoria)}>` : `<span class="sem">${ICONE[p.categoria] || "📦"}</span>`}
+      <div class="selo">${exemplo ? SELO_EXEMPLO : ""}${p.oportunidades ? `<span class="pill">🔥 ${p.oportunidades} oportunidade(s)</span>` : ""}${p.observacao ? `<span class="pill">👀 ${p.observacao}</span>` : ""}</div></div>
+    <div class="corpo">
+      <h3>${esc(p.nome)}</h3>
+      ${p.ref ? `<div class="precos"><span class="preco">${brl(p.ref.mediana)}</span><span class="muted">mediana de usado · ${p.ref.n} anúncios</span></div>${faixaPreco(p.ref, null)}`
+              : `<div class="muted">Ainda sem anúncios suficientes para calcular o preço de mercado.</div>`}
+      ${Object.keys(p.variantes || {}).length ? `<div class="chips">${Object.entries(p.variantes).map(([v, r]) => `<span class="chip" data-tip="${r.n} anúncios · faixa ${brl(r.p25)}–${brl(r.p75)}">${esc(v)}: <b>${brl(r.mediana)}</b></span>`).join("")}</div>` : ""}
+      ${p.horas_mediana_sumir ? `<div class="mini">⏱️ Achados deste produto somem em ~${Math.round(p.horas_mediana_sumir)} h</div>` : ""}
+      ${novo ? `<div><div class="muted">🏬 Novo em lojas ${novoMin ? `a partir de <b>${brl(novoMin)}</b>` : ""} · ${ha(novo.pesquisado_em)}</div>
+          <div class="ofertas">${ofertas.map(o => `${link(o)}<span>${esc(o.loja)}${o.observacao ? ` <span class="mini">(${esc(o.observacao)})</span>` : ""}</span><b>${brl(o.preco)}</b></a>`).join("")}</div>
+          ${novo.preco_usado_tipico ? `<div class="mini">Usado típico na web: ${brl(novo.preco_usado_tipico)}</div>` : ""}
+          ${novo.resumo ? `<div class="resumo-ia">🤖 ${esc(novo.resumo)}</div>` : ""}${teto}</div>`
+        : `<div class="mini">🏬 Preço de novo: aguardando a pesquisa na web.</div>`}
+      ${exemplo ? "" : `<div class="acoes"><button class="btn" data-ver-produto="${p.id}">Ver anúncios deste produto</button></div>`}
+    </div></article>`;
+}
+
 function renderProdutos() {
+  const reais = DADOS.produtos.some(p => p.ref || p.novo);
+  const ex = mostrarExemplo("produtos", reais);
+  let html = `<div class="filtros"><p class="muted" style="flex:1;margin:0">Preço de mercado de usados (anúncios de pessoa física dos últimos dias) e as melhores ofertas de <b>novo</b> em lojas, pesquisadas na web pelo Claude. Um usado raramente revende acima do preço do novo.</p>${botaoExemplo("produtos", ex)}</div>`;
+  if (ex) {
+    html += avisoExemplo(reais ? "Assim fica um produto com dados completos." : "Os cards reais aparecem aqui depois das primeiras execuções do robô.")
+      + `<div class="grade">${EXEMPLO_PRODUTOS.map(p => cardProduto(p, true)).join("")}</div>`
+      + (reais ? `<h2>Seus produtos</h2>` : `<h2>Produtos monitorados (aguardando dados)</h2>`);
+  }
   const porCat = {};
   for (const p of DADOS.produtos) (porCat[p.categoria] ||= []).push(p);
-  let html = `<p class="muted">Preço de mercado de usados (anúncios de pessoa física dos últimos dias) e as melhores ofertas de <b>novo</b> em lojas, pesquisadas na web pelo Claude a cada poucos dias. Um usado raramente revende acima do preço do novo.</p>`;
   for (const [cat, lista] of Object.entries(porCat)) {
-    html += `<h2>${ICONE[cat] || ""} ${CAT_NOME[cat] || cat}</h2><div class="grade">` + lista.map(p => {
-      const novo = p.novo;
-      const ofertas = (novo?.ofertas || []).slice(0, 4);
-      const novoMin = ofertas.length ? Math.min(...ofertas.map(o => o.preco)) : null;
-      const teto = novoMin && p.ref && p.ref.mediana > novoMin * 0.9
-        ? `<div class="mini">⚠️ Usado está perto do preço do novo: margem de revenda apertada.</div>` : "";
-      return `<article class="card">
-        <div class="foto">${p.foto ? `<img src="${urlSegura(p.foto)}" alt="Foto de ${esc(p.nome)}" loading="lazy" referrerpolicy="no-referrer" ${imgFallback(p.categoria)}>` : `<span class="sem">${ICONE[p.categoria] || "📦"}</span>`}
-          <div class="selo">${p.oportunidades ? `<span class="pill">🔥 ${p.oportunidades} oportunidade(s)</span>` : ""}${p.observacao ? `<span class="pill">👀 ${p.observacao}</span>` : ""}</div></div>
-        <div class="corpo">
-          <h3>${esc(p.nome)}</h3>
-          ${p.ref ? `<div class="precos"><span class="preco">${brl(p.ref.mediana)}</span><span class="muted">mediana de usado · ${p.ref.n} anúncios</span></div>${faixaPreco(p.ref, null)}`
-                  : `<div class="muted">Ainda sem anúncios suficientes para calcular o preço de mercado.</div>`}
-          ${Object.keys(p.variantes).length ? `<div class="chips">${Object.entries(p.variantes).map(([v, r]) => `<span class="chip" data-tip="${r.n} anúncios · faixa ${brl(r.p25)}–${brl(r.p75)}">${esc(v)}: <b>${brl(r.mediana)}</b></span>`).join("")}</div>` : ""}
-          ${p.horas_mediana_sumir ? `<div class="mini">⏱️ Achados deste produto somem em ~${Math.round(p.horas_mediana_sumir)} h</div>` : ""}
-          ${novo ? `<div><div class="muted">🏬 Novo em lojas ${novoMin ? `a partir de <b>${brl(novoMin)}</b>` : ""} · ${ha(novo.pesquisado_em)}</div>
-              <div class="ofertas">${ofertas.map(o => `<a href="${urlSegura(o.url)}" target="_blank" rel="noopener"><span>${esc(o.loja)}${o.observacao ? ` <span class="mini">(${esc(o.observacao)})</span>` : ""}</span><b>${brl(o.preco)}</b></a>`).join("")}</div>
-              ${novo.preco_usado_tipico ? `<div class="mini">Usado típico na web: ${brl(novo.preco_usado_tipico)}</div>` : ""}
-              ${novo.resumo ? `<div class="resumo-ia">🤖 ${esc(novo.resumo)}</div>` : ""}${teto}</div>`
-            : `<div class="mini">🏬 Preço de novo: aguardando a pesquisa na web.</div>`}
-          <div class="acoes"><button class="btn" data-ver-produto="${p.id}">Ver anúncios deste produto</button></div>
-        </div></article>`;
-    }).join("") + `</div>`;
+    html += `<h2>${ICONE[cat] || ""} ${CAT_NOME[cat] || cat}</h2><div class="grade">${lista.map(p => cardProduto(p)).join("")}</div>`;
   }
   return html;
 }
 
+function cardRota(r, exemplo = false) {
+  const u = r.ultima;
+  const voos = (u?.voos || []).slice().sort((a, b) => a.preco - b.preco);
+  const melhor = voos[0];
+  const bom = melhor && r.preco_alvo && melhor.preco <= r.preco_alvo;
+  const minHist = r.historico.length ? Math.min(...r.historico.map(h => h.preco)) : null;
+  const link = v => exemplo ? `<a href="#" data-exemplo-link>` : `<a href="${urlSegura(v.url)}" target="_blank" rel="noopener">`;
+  return `<article class="card ${exemplo ? "exemplo" : ""}">
+    <div class="corpo">
+      ${exemplo ? `<div>${SELO_EXEMPLO}</div>` : ""}
+      <h3>✈️ ${esc(r.nome)} ${r.ativa === false ? `<span class="pill">pausada</span>` : ""}</h3>
+      <div class="muted">${esc((r.destinos || []).join(" · "))}<br>${esc(r.periodo)} · ${r.min_dias || "?"}–${r.max_dias || "?"} dias · alvo ${brl(r.preco_alvo)}</div>
+      ${melhor ? `<div class="precos"><span class="preco">${brl(melhor.preco)}</span>
+          <span class="pill"><span class="dot" style="background:${bom ? "var(--good)" : "var(--warning)"}"></span>${bom ? "✓ abaixo do alvo" : "acima do alvo"}</span>
+          ${minHist && melhor.preco <= minHist ? `<span class="pill">📉 menor já visto</span>` : ""}</div>
+          <div class="mini">ida e volta por adulto · pesquisado ${ha(u.pesquisado_em)}</div>`
+        : `<div class="muted">${r.erro ? "Última pesquisa falhou: " + esc(r.erro) : "Aguardando a primeira pesquisa."}</div>`}
+      ${sparkline(r.historico, r.preco_alvo)}
+      ${voos.length ? `<div class="ofertas">${voos.slice(0, 5).map(v => `${link(v)}<span>${esc(v.destino)} · ${esc(diaMes(v.ida))}${v.volta ? " → " + esc(diaMes(v.volta)) : ""}<br><span class="mini">${esc(v.companhia)} · ${esc(v.escalas)} · ${esc(v.fonte)}</span></span><b>${brl(v.preco)}</b></a>`).join("")}</div>` : ""}
+      ${u?.resumo ? `<div class="resumo-ia">🤖 ${esc(u.resumo)}</div>` : ""}
+    </div></article>`;
+}
+
 function renderPassagens() {
-  if (!DADOS.passagens.length) return `<div class="vazio">Nenhuma rota configurada. Edite <code>config/passagens.yaml</code>.</div>`;
-  return `<p class="muted">O Claude pesquisa na web (Google Flights, Kayak, Decolar, companhias…) cerca de 1 vez por dia por rota. Preços de passagem mudam a toda hora: <b>confirme no link antes de comprar</b>.</p><div class="grade">` +
-    DADOS.passagens.map(r => {
-      const u = r.ultima;
-      const voos = (u?.voos || []).slice().sort((a, b) => a.preco - b.preco);
-      const melhor = voos[0];
-      const bom = melhor && r.preco_alvo && melhor.preco <= r.preco_alvo;
-      const minHist = r.historico.length ? Math.min(...r.historico.map(h => h.preco)) : null;
-      return `<article class="card">
-        <div class="corpo">
-          <h3>✈️ ${esc(r.nome)} ${r.ativa === false ? `<span class="pill">pausada</span>` : ""}</h3>
-          <div class="muted">${esc((r.destinos || []).join(" · "))}<br>${esc(r.periodo)} · ${r.min_dias || "?"}–${r.max_dias || "?"} dias · alvo ${brl(r.preco_alvo)}</div>
-          ${melhor ? `<div class="precos"><span class="preco">${brl(melhor.preco)}</span>
-              <span class="pill"><span class="dot" style="background:${bom ? "var(--good)" : "var(--warning)"}"></span>${bom ? "✓ abaixo do alvo" : "acima do alvo"}</span>
-              ${minHist && melhor.preco <= minHist ? `<span class="pill">📉 menor já visto</span>` : ""}</div>
-              <div class="mini">ida e volta por adulto · pesquisado ${ha(u.pesquisado_em)}</div>`
-            : `<div class="muted">${r.erro ? "Última pesquisa falhou: " + esc(r.erro) : "Aguardando a primeira pesquisa."}</div>`}
-          ${sparkline(r.historico, r.preco_alvo)}
-          ${voos.length ? `<div class="ofertas">${voos.slice(0, 5).map(v => `<a href="${urlSegura(v.url)}" target="_blank" rel="noopener"><span>${esc(v.destino)} · ${esc(diaMes(v.ida))}${v.volta ? " → " + esc(diaMes(v.volta)) : ""}<br><span class="mini">${esc(v.companhia)} · ${esc(v.escalas)} · ${esc(v.fonte)}</span></span><b>${brl(v.preco)}</b></a>`).join("")}</div>` : ""}
-          ${u?.resumo ? `<div class="resumo-ia">🤖 ${esc(u.resumo)}</div>` : ""}
-        </div></article>`;
-    }).join("") + `</div>`;
+  const reais = DADOS.passagens.some(r => r.ultima);
+  const ex = mostrarExemplo("passagens", reais);
+  let html = `<div class="filtros"><p class="muted" style="flex:1;margin:0">O Claude pesquisa na web (Google Flights, Kayak, Decolar, companhias…) cerca de 1 vez por dia por rota. Preços de passagem mudam a toda hora: <b>confirme no link antes de comprar</b>. Rotas em <code>config/passagens.yaml</code>.</p>${botaoExemplo("passagens", ex)}</div>`;
+  if (ex) {
+    html += avisoExemplo(reais ? "Assim fica uma rota com uma semana de histórico." : "Os cards reais aparecem aqui depois da primeira pesquisa de cada rota.")
+      + `<div class="grade">${EXEMPLO_PASSAGENS.map(r => cardRota(r, true)).join("")}</div>`
+      + `<h2>Suas rotas</h2>`;
+  }
+  html += DADOS.passagens.length ? `<div class="grade">${DADOS.passagens.map(r => cardRota(r)).join("")}</div>`
+    : `<div class="vazio">Nenhuma rota configurada. Edite <code>config/passagens.yaml</code>.</div>`;
+  return html;
 }
 
 function renderOperacoes() {
@@ -460,6 +533,13 @@ document.addEventListener("click", e => {
     abaAtual = DADOS.anuncios.some(a => a.item_id === p.id && a.situacao === "oportunidade") ? "oportunidades" : "observacao";
     render(); return;
   }
+  const alt = e.target.closest("[data-alternar-exemplo]");
+  if (alt) {
+    const aba = alt.dataset.alternarExemplo;
+    const atual = mostrarExemplo(aba, aba === "produtos" ? DADOS.produtos.some(p => p.ref || p.novo) : DADOS.passagens.some(r => r.ultima));
+    estado.exemplos[aba] = !atual; salvar(); render(); return;
+  }
+  if (e.target.closest("[data-exemplo-link]")) { e.preventDefault(); alert("Este é um card de exemplo: os links aparecem nos cards reais."); return; }
   if (e.target.closest("[data-limpar-item]")) { filtros.item = ""; salvar(); render(); return; }
   const f = e.target.closest("[data-foto]");
   if (f) {
