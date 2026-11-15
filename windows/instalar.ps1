@@ -9,24 +9,24 @@ Write-Host "Pasta do robô: $raiz" -ForegroundColor Cyan
 
 # 1) Python: tenta o lançador "py", o "python" do PATH e as pastas padrão de instalação.
 $candidatos = @()
-if (Get-Command py -ErrorAction SilentlyContinue) { $candidatos += ,@("py", "-3") }
+if (Get-Command py -ErrorAction SilentlyContinue) { $candidatos += [pscustomobject]@{ Exe = "py"; Args = @("-3") } }
 $cmdPython = Get-Command python -ErrorAction SilentlyContinue
-if ($cmdPython -and $cmdPython.Source -notlike "*WindowsApps*") { $candidatos += ,@($cmdPython.Source) }
+if ($cmdPython -and $cmdPython.Source -notlike "*WindowsApps*") { $candidatos += [pscustomobject]@{ Exe = $cmdPython.Source; Args = @() } }
 $pastas = @("$env:LOCALAPPDATA\Programs\Python", "$env:ProgramFiles", "${env:ProgramFiles(x86)}")
 foreach ($pasta in $pastas) {
     if ($pasta -and (Test-Path $pasta)) {
         Get-ChildItem -Path $pasta -Filter "Python3*" -Directory -ErrorAction SilentlyContinue |
             Sort-Object Name -Descending | ForEach-Object {
                 $exe = Join-Path $_.FullName "python.exe"
-                if (Test-Path $exe) { $candidatos += ,@($exe) }
+                if (Test-Path $exe) { $candidatos += [pscustomobject]@{ Exe = $exe; Args = @() } }
             }
     }
 }
 $py = $null
 foreach ($c in $candidatos) {
-    $exe = $c[0]; $extra = @($c | Select-Object -Skip 1)
-    $v = (& $exe @extra --version 2>&1 | Out-String).Trim()
-    Write-Host "  testando $($c -join ' '): $v"
+    $extra = @($c.Args)
+    $v = (& $c.Exe @extra --version 2>&1 | Out-String).Trim()
+    Write-Host "  testando $($c.Exe) $($extra -join ' '): $v"
     if ($v -match "Python 3\.(1[0-9])") { $py = $c; break }
 }
 if (-not $py) {
@@ -37,7 +37,7 @@ if (-not $py) {
     Write-Host "Depois FECHE e ABRA o PowerShell de novo e rode este instalador outra vez."
     exit 1
 }
-Write-Host "Usando: $($py -join ' ') ($v)" -ForegroundColor Cyan
+Write-Host "Usando: $($py.Exe) ($v)" -ForegroundColor Cyan
 
 # 2) Git
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
@@ -48,8 +48,8 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 # 3) Ambiente virtual + dependências
 if (-not (Test-Path ".venv\Scripts\python.exe")) {
     Write-Host "Criando ambiente virtual (.venv)..."
-    $exe = $py[0]; $extra = @($py | Select-Object -Skip 1)
-    & $exe @extra -m venv .venv
+    $extra = @($py.Args)
+    & $py.Exe @extra -m venv .venv
     if ($LASTEXITCODE -ne 0) { Write-Host "Falha ao criar o ambiente virtual." -ForegroundColor Red; exit 1 }
 }
 & .venv\Scripts\python.exe -m pip install --upgrade pip --quiet
