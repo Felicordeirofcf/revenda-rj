@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Revenda RJ · oportunidades</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f4f2; --surface: #fcfcfb; --surface-2: #f0efec; --border: #e2e1dc;
+  --text: #0b0b0b; --text-2: #52514e; --text-3: #7a7974;
+  --accent: #2a78d6; --accent-soft: #cde2fb; --band: #b7d3f6;
+  --good: #0ca30c; --good-ink: #0a7a0a; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --surface-2: #262624; --border: #33332f;
+    --text: #f0efec; --text-2: #c3c2b7; --text-3: #8f8e86;
+    --accent: #3987e5; --accent-soft: #184f95; --band: #1c5cab; --good-ink: #3fcf3f;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --surface-2: #262624; --border: #33332f;
+  --text: #f0efec; --text-2: #c3c2b7; --text-3: #8f8e86;
+  --accent: #3987e5; --accent-soft: #184f95; --band: #1c5cab; --good-ink: #3fcf3f;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+a { color: var(--accent); }
+header { padding: 20px 20px 8px; max-width: 1400px; margin: 0 auto; }
+.topo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: 22px; margin: 0; }
+.sub { color: var(--text-2); font-size: 13px; }
+.aviso { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); border-left: 4px solid var(--warning); font-size: 14px; }
+.btn { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.primario { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.ativo { outline: 2px solid var(--accent); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 14px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; box-shadow: var(--shadow); }
+.tile .rot { font-size: 12px; color: var(--text-2); }
+.tile .val { font-size: 22px; font-weight: 600; }
+nav { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--border); }
+nav .in { max-width: 1400px; margin: 0 auto; padding: 8px 20px; display: flex; gap: 6px; overflow-x: auto; }
+nav button { white-space: nowrap; border: 0; background: none; color: var(--text-2); padding: 8px 12px; border-radius: 8px; font: inherit; cursor: pointer; }
+nav button[aria-selected="true"] { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow); }
+nav .cont { display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 10px; background: var(--surface-2); font-size: 12px; margin-left: 4px; }
+main { max-width: 1400px; margin: 0 auto; padding: 14px 20px 60px; }
+.filtros { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; align-items: center; }
+.filtros select, .filtros input { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; }
+.grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow); }
+.card.apagado { opacity: .55; }
+.foto { position: relative; aspect-ratio: 4 / 3; background: var(--surface-2); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.foto img { width: 100%; height: 100%; object-fit: cover; }
+.foto .sem { font-size: 42px; opacity: .5; }
+.foto .selo { position: absolute; top: 8px; left: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.foto .nav-foto { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; }
+.foto .nav-foto button { border: 0; border-radius: 6px; background: rgba(0,0,0,.55); color: #fff; padding: 2px 8px; cursor: pointer; }
+.pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+.foto .pill { background: rgba(255,255,255,.92); color: #0b0b0b; border: 0; }
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+.corpo { padding: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.corpo h3 { font-size: 15px; margin: 0; line-height: 1.3; }
+.corpo h3 a { color: var(--text); text-decoration: none; }
+.corpo h3 a:hover { text-decoration: underline; }
+.precos { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.preco { font-size: 24px; font-weight: 700; }
+.riscado { color: var(--text-3); text-decoration: line-through; font-size: 13px; }
+.lucro { color: var(--good-ink); font-weight: 700; }
+.muted { color: var(--text-2); font-size: 13px; }
+.mini { color: var(--text-3); font-size: 12px; }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.resumo-ia { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+details { font-size: 13px; }
+details summary { cursor: pointer; color: var(--text-2); }
+details ul { margin: 6px 0 0; padding-left: 18px; }
+.acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; padding-top: 4px; }
+.faixa svg { display: block; width: 100%; height: 34px; overflow: visible; }
+.faixa text { font-size: 10px; fill: var(--text-3); }
+.vazio { padding: 40px; text-align: center; color: var(--text-2); background: var(--surface); border: 1px dashed var(--border); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 10px; overflow: hidden; font-size: 13px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--text-2); font-weight: 600; background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+h2 { font-size: 17px; margin: 22px 0 10px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--surface-2); }
+.ofertas a { display: flex; justify-content: space-between; gap: 8px; text-decoration: none; color: var(--text); padding: 4px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
+.ofertas a:hover { color: var(--accent); }
+.ofertas b { white-space: nowrap; }
+.spark svg { display: block; width: 100%; height: auto; overflow: visible; }
+.spark text { font-size: 10px; fill: var(--text-3); }
+.spark .pt:hover { r: 6; }
+.oculto { display: none !important; }
+.tip { position: fixed; pointer-events: none; background: var(--text); color: var(--surface); padding: 4px 8px; border-radius: 6px; font-size: 12px; z-index: 50; }
+@media (max-width: 520px) { .grade { grid-template-columns: 1fr; } header, main { padding-left: 12px; padding-right: 12px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="topo">
+    <h1>📦 Revenda RJ</h1>
+    <span class="sub" id="atualizado"></span>
+    <span style="flex:1"></span>
+    <button class="btn" id="tema" title="Alternar tema claro/escuro">🌓</button>
+  </div>
+  <div id="avisos"></div>
+  <div class="tiles" id="tiles"></div>
+</header>
+<nav><div class="in" role="tablist" id="abas"></div></nav>
+<main id="conteudo"></main>
+<div class="tip oculto" id="tip"></div>
+
+<script>
+const DADOS = {"gerado_em": "2026-11-15T14:15:58.638012+00:00", "regras": {"orcamento_max": 3000, "margem_min_pct": 20, "lucro_min_reais": 100, "desconto_negociacao_pct": 7, "custo_fixo_reais": 40, "taxa_venda_pct": 0, "zonas_aceitas": ["Zona Sul", "Zona Norte", "Centro", "Barra/Jacarepaguá", "Zona Oeste", "Niterói"], "idade_max_dias": 7, "referencia_min_amostras": 5}, "anuncios": [], "vendidos": [], "produtos": [{"id": "iphone-11", "nome": "iPhone 11", "categoria": "celular", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "iphone-11-pro", "nome": "iPhone 11 Pro / Pro Max", "categoria": "celular", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "iphone-12", "nome": "iPhone 12", "categoria": "celular", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "iphone-12-pro", "nome": "iPhone 12 Pro / Pro Max", "categoria": "celular", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "iphone-13", "nome": "iPhone 13", "categoria": "celular", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "iphone-13-pro", "nome": "iPhone 13 Pro / Pro Max", "categoria": "celular", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "iphone-14", "nome": "iPhone 14 / 14 Plus", "categoria": "celular", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "galaxy-s21", "nome": "Galaxy S21 / S21 FE / S21+", "categoria": "celular", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "galaxy-s22", "nome": "Galaxy S22 / S22+", "categoria": "celular", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "galaxy-s23", "nome": "Galaxy S23 / S23 FE", "categoria": "celular", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "galaxy-a55", "nome": "Galaxy A54 / A55", "categoria": "celular", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "ps5", "nome": "PlayStation 5", "categoria": "console", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "xbox-series-s", "nome": "Xbox Series S", "categoria": "console", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "xbox-series-x", "nome": "Xbox Series X", "categoria": "console", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "switch-oled", "nome": "Nintendo Switch OLED", "categoria": "console", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "switch-v2", "nome": "Nintendo Switch (comum)", "categoria": "console", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "ipad-9-10", "nome": "iPad 9ª / 10ª geração", "categoria": "tablet", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "ipad-air", "nome": "iPad Air (4ª/5ª)", "categoria": "tablet", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "apple-watch", "nome": "Apple Watch SE / Series 7-9", "categoria": "relogio", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "macbook-air-m1", "nome": "MacBook Air M1", "categoria": "notebook", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "rtx-3060", "nome": "RTX 3060 / 3060 Ti", "categoria": "gpu", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "rtx-4060", "nome": "RTX 4060 / 4060 Ti", "categoria": "gpu", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}, {"id": "dji-mini", "nome": "DJI Mini 2 / Mini 3", "categoria": "drone", "foto": null, "ref": null, "variantes": {}, "novo": null, "oportunidades": 0, "observacao": 0, "horas_mediana_sumir": null}], "checklists": {"celular": ["Encontrar em local público e movimentado (shopping, estação de metrô), de dia", "IMEI: *#06# e consultar em celularseguro.mj.gov.br (roubo/furto)", "Sem conta logada: iCloud/Buscar iPhone desativado ou conta Google removida", "Saúde da bateria (iPhone: Ajustes > Bateria; acima de 80%)", "Ajustes > Geral > Sobre: peças e histórico (tela/bateria 'desconhecida' = trocada)", "Testar Face ID/digital, câmeras, alto-falante, microfone (ligação), chip e Wi-Fi", "Nota fiscal ou caixa com IMEI igual ao do aparelho"], "console": ["Ligar na TV do local ou levar um monitor/HDMI; jogar 10 minutos", "Testar leitor de disco (se tiver) e todas as portas USB", "Ver se a conta foi removida e se o console não está banido (entrar na loja online)", "Controles: analógicos sem drift, gatilhos e vibração", "Barulho de ventoinha e temperatura após uso", "Nota fiscal / número de série batendo com a caixa"], "tablet": ["Sem iCloud/Buscar iPad ativo", "Saúde da bateria e carregamento", "Tela: manchas, pixels mortos, touch em toda a área", "Câmeras, alto-falantes, Wi-Fi; se for celular, testar chip"], "relogio": ["Desemparelhado do iPhone do vendedor (sem bloqueio de ativação)", "Saúde da bateria e carregamento no carregador original", "Tela sem riscos profundos, coroa e botão funcionando"], "notebook": ["Sem senha de firmware/BIOS e sem conta da empresa (MDM) — macOS: Ajustes > Geral", "Ciclos e saúde da bateria (macOS: Informações do Sistema > Energia)", "Teclado completo (abrir um editor e testar todas as teclas), trackpad, portas", "Tela: manchas, pixels mortos, dobradiça firme", "Rodar algo pesado 5 minutos e ver aquecimento"], "gpu": ["Ver funcionando num PC (do vendedor) rodando um benchmark ou jogo por 10 minutos", "Temperatura, artefatos na imagem, barulho das ventoinhas", "Perguntar se foi usada em mineração; conferir lacres/parafusos", "Nota fiscal (garantia de fábrica pode ser transferível)"], "drone": ["Desvinculado da conta DJI do vendedor", "Ligar, parear com o controle e decolar/pairar alguns minutos", "Gimbal e câmera, hélices e baterias (ciclos e inchaço)"]}, "passagens": [{"id": "nordeste-jan", "nome": "Nordeste em janeiro", "destinos": ["Maceió (MCZ)", "Recife (REC)", "Salvador (SSA)"], "periodo": "janeiro de 2027", "min_dias": 7, "max_dias": 12, "preco_alvo": 900, "ativa": true, "ultima": null, "historico": [], "erro": null}, {"id": "sp-feriado", "nome": "São Paulo no próximo feriado", "destinos": ["São Paulo (GRU ou CGH)"], "periodo": "próximo feriado prolongado nos próximos 3 meses", "min_dias": 2, "max_dias": 4, "preco_alvo": 350, "ativa": true, "ultima": null, "historico": [], "erro": null}], "execucoes": []};
+const LS = "revenda-rj:v1";
+const estado = JSON.parse(localStorage.getItem(LS) || "{}");
+estado.status ||= {};
+const visitaAnterior = estado.ultimaVisita ? new Date(estado.ultimaVisita) : null;
+function salvar() { localStorage.setItem(LS, JSON.stringify(estado)); }
+window.addEventListener("beforeunload", () => { estado.ultimaVisita = new Date().toISOString(); salvar(); });
+
+// ---------------------------------------------------------------- utilidades
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const urlSegura = u => (typeof u === "string" && /^https?:\/\//i.test(u)) ? esc(u) : "#";
+const brl = v => v == null ? "—" : "R$ " + Math.round(v).toLocaleString("pt-BR");
+const pct = v => v == null ? "—" : (v > 0 ? "+" : "") + Math.round(v) + "%";
+function ha(iso) {
+  if (!iso) return "";
+  const min = (Date.now() - new Date(iso)) / 60000;
+  if (min < 60) return `há ${Math.max(1, Math.round(min))} min`;
+  if (min < 1440) return `há ${Math.round(min / 60)} h`;
+  return `há ${Math.round(min / 1440)} d`;
+}
+function diaMes(s) { const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(s || ""); return m ? (m[3] ? `${m[3]}/${m[2]}` : `${m[2]}/${m[1]}`) : s; }
+const imgFallback = cat => `onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sem',textContent:'${ICONE[cat] || "📦"}'}))"`;
+function dataBr(iso) { return iso ? new Date(iso).toLocaleString("pt-BR", {dateStyle: "short", timeStyle: "short"}) : "—"; }
+const ICONE = {celular: "📱", console: "🎮", tablet: "📲", relogio: "⌚", notebook: "💻", gpu: "🖥️", drone: "🛸"};
+const CAT_NOME = {celular: "Celulares", console: "Consoles", tablet: "Tablets", relogio: "Relógios", notebook: "Notebooks", gpu: "Placas de vídeo", drone: "Drones"};
+const RISCO = {baixo: ["Risco baixo", "var(--good)"], medio: ["Risco médio", "var(--warning)"], alto: ["Risco alto", "var(--critical)"]};
+const RECOM = {ir_ver: "✅ Vale ir ver", negociar_antes: "💬 Negociar antes", evitar: "⛔ Evitar"};
+const ESTADO = {novo_lacrado: "Lacrado", seminovo_otimo: "Seminovo ótimo", bom: "Bom estado", marcas_de_uso: "Marcas de uso", com_problema: "Com problema", nao_informado: "Estado não informado"};
+const produtoPorId = Object.fromEntries((DADOS.produtos || []).map(p => [p.id, p]));
+
+const tip = document.getElementById("tip");
+document.addEventListener("mouseover", e => {
+  const alvo = e.target.closest("[data-tip]");
+  if (!alvo) { tip.classList.add("oculto"); return; }
+  tip.textContent = alvo.dataset.tip; tip.classList.remove("oculto");
+});
+document.addEventListener("mousemove", e => { tip.style.left = (e.clientX + 12) + "px"; tip.style.top = (e.clientY + 12) + "px"; });
+
+// ---------------------------------------------------------------- tema
+document.getElementById("tema").onclick = () => {
+  const escuro = document.documentElement.dataset.theme
+    ? document.documentElement.dataset.theme === "dark"
+    : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = escuro ? "light" : "dark";
+  estado.tema = document.documentElement.dataset.theme; salvar();
+};
+if (estado.tema) document.documentElement.dataset.theme = estado.tema;
+
+// ---------------------------------------------------------------- gráficos
+// Faixa de preço do mercado: trilho do menor ao maior relevante, faixa central p25-p75,
+// traço da mediana e ponto do preço do anúncio.
+function faixaPreco(ref, atual) {
+  if (!ref) return "";
+  const lo = Math.min(ref.menor, atual ?? ref.menor, ref.p25) * 0.95;
+  const hi = Math.max(ref.p75 * 1.1, atual ?? 0, ref.mediana * 1.15);
+  const x = v => 6 + (v - lo) / (hi - lo) * 88;  // em %
+  const marc = atual != null ? `<circle cx="${x(atual)}%" cy="12" r="6" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"><title>Este anúncio: ${brl(atual)}</title></circle>` : "";
+  return `<div class="faixa" data-tip="Mercado: metade dos anúncios entre ${brl(ref.p25)} e ${brl(ref.p75)} · mediana ${brl(ref.mediana)} · ${ref.n} anúncios">
+  <svg role="img" aria-label="Faixa de preço do mercado entre ${brl(ref.p25)} e ${brl(ref.p75)}, mediana ${brl(ref.mediana)}">
+    <rect x="${x(lo)}%" y="10" width="${x(hi) - x(lo)}%" height="4" rx="2" fill="var(--surface-2)"/>
+    <rect x="${x(ref.p25)}%" y="8" width="${Math.max(1, x(ref.p75) - x(ref.p25))}%" height="8" rx="4" fill="var(--band)"/>
+    <line x1="${x(ref.mediana)}%" x2="${x(ref.mediana)}%" y1="4" y2="20" stroke="var(--text-2)" stroke-width="2"/>
+    ${marc}
+    <text x="${Math.min(80, Math.max(20, (x(ref.p25) + x(ref.p75)) / 2))}%" y="32" text-anchor="middle">metade dos anúncios: ${brl(ref.p25)}–${brl(ref.p75)}</text>
+  </svg></div>`;
+}
+
+// Histórico de preço da passagem: linha de 2px + linha tracejada do preço-alvo.
+function sparkline(hist, alvo) {
+  if (!hist || hist.length < 2) return `<div class="mini">O histórico aparece a partir da 2ª pesquisa.</div>`;
+  const W = 300, H = 60, P = 6;
+  const vs = hist.map(h => h.preco).concat(alvo ? [alvo] : []);
+  const lo = Math.min(...vs) * 0.95, hi = Math.max(...vs) * 1.05;
+  const x = i => P + i / (hist.length - 1) * (W - 2 * P);
+  const y = v => H - P - (v - lo) / (hi - lo) * (H - 2 * P);
+  const d = hist.map((h, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(h.preco).toFixed(1)}`).join(" ");
+  const pts = hist.map((h, i) => `<circle class="pt" cx="${x(i)}" cy="${y(h.preco)}" r="${i === hist.length - 1 ? 4 : 3}" fill="var(--accent)" stroke="var(--surface)" stroke-width="2" data-tip="${dataBr(h.t)}: ${brl(h.preco)}"/>`).join("");
+  const linhaAlvo = alvo ? `<line x1="${P}" x2="${W - P}" y1="${y(alvo)}" y2="${y(alvo)}" stroke="var(--good)" stroke-width="1.5" stroke-dasharray="4 4"/><text x="${W - P}" y="${y(alvo) - 4}" text-anchor="end">alvo ${brl(alvo)}</text>` : "";
+  return `<div class="spark"><svg viewBox="0 0 ${W} ${H + 8}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Histórico do menor preço: de ${brl(hist[0].preco)} para ${brl(hist.at(-1).preco)}">
+    ${linhaAlvo}<path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/>${pts}</svg></div>`;
+}
+
+// ---------------------------------------------------------------- cards de anúncio
+function fotoHtml(a) {
+  const imgs = a.imagens || [];
+  const novo = visitaAnterior && new Date(a.primeiro_visto) > visitaAnterior;
+  const selos = [];
+  if (a.margem != null) selos.push(`<span class="pill">${a.margem >= DADOS.regras.margem_min_pct ? "🔥" : "👀"} ${pct(a.margem)}</span>`);
+  if (novo) selos.push(`<span class="pill">🆕 novo</span>`);
+  if (a.situacao === "vendido") selos.push(`<span class="pill">✔️ vendido</span>`);
+  const img = imgs.length
+    ? `<img src="${urlSegura(imgs[0])}" alt="Foto do anúncio: ${esc(a.titulo)}" loading="lazy" referrerpolicy="no-referrer" ${imgFallback(a.categoria)}>`
+    : `<span class="sem">${ICONE[a.categoria] || "📦"}</span>`;
+  const nav = imgs.length > 1 ? `<div class="nav-foto"><button data-foto="-1" data-id="${a.id}" aria-label="Foto anterior">‹</button><button data-foto="1" data-id="${a.id}" aria-label="Próxima foto">›</button></div>` : "";
+  return `<div class="foto" data-idx="0">${img}<div class="selo">${selos.join("")}</div>${nav}</div>`;
+}
+
+function cardAnuncio(a) {
+  const st = estado.status[a.id]?.estado;
+  const ia = a.analise;
+  const prod = produtoPorId[a.item_id];
+  const badges = [];
+  if (ia) {
+    const [rot, cor] = RISCO[ia.nivel_risco] || ["?", "var(--text-3)"];
+    badges.push(`<span class="pill"><span class="dot" style="background:${cor}"></span>${rot}</span>`);
+    badges.push(`<span class="pill">${RECOM[ia.recomendacao] || ""}</span>`);
+    if (ia.estado) badges.push(`<span class="pill">${ESTADO[ia.estado] || ia.estado}</span>`);
+  } else {
+    badges.push(`<span class="pill"><span class="dot" style="background:var(--text-3)"></span>Sem análise da IA</span>`);
+  }
+  if (a.suspeito) badges.push(`<span class="pill"><span class="dot" style="background:var(--critical)"></span>⚠️ Preço bom demais</span>`);
+  if (a.preco_inicial && a.preco < a.preco_inicial) badges.push(`<span class="pill">📉 baixou ${brl(a.preco_inicial - a.preco)}</span>`);
+  if (a.lojista) badges.push(`<span class="pill">🏪 loja</span>`);
+  if (st) badges.push(`<span class="pill">${{vou_ver: "📍 vou ver", comprei: "🛒 comprei", descartado: "🗑️ descartado", vendi: "💰 vendi"}[st]}</span>`);
+
+  const novoMin = prod?.novo?.ofertas?.length ? Math.min(...prod.novo.ofertas.map(o => o.preco)) : null;
+  const linhaNovo = novoMin ? `<div class="mini">🏬 Novo em loja a partir de <b>${brl(novoMin)}</b> (${ha(prod.novo.pesquisado_em)})</div>` : "";
+  const ck = DADOS.checklists[a.categoria] || [];
+  const perguntas = ia?.perguntas_vendedor?.length ? `<details><summary>💬 Perguntar ao vendedor${ia.oferta_sugerida ? ` · oferta sugerida <b>${brl(ia.oferta_sugerida)}</b>` : ""}</summary><ul>${ia.perguntas_vendedor.map(p => `<li>${esc(p)}</li>`).join("")}</ul></details>` : "";
+  const riscos = ia?.sinais_risco?.length ? `<details><summary>⚠️ Sinais de risco (${ia.sinais_risco.length})</summary><ul>${ia.sinais_risco.map(p => `<li>${esc(p)}</li>`).join("")}</ul></details>` : "";
+  const acomp = ia?.acompanha?.length ? `<div class="mini">📦 Acompanha: ${ia.acompanha.map(esc).join(", ")}</div>` : "";
+  const checklist = ck.length ? `<details><summary>✅ Checklist na hora (${ck.length})</summary><ul>${ck.map(p => `<li>${esc(p)}</li>`).join("")}</ul></details>` : "";
+  const refTxt = a.ref ? `mercado ${brl(a.ref)} · ${a.n_ref} anúncios${a.ref_tipo === "modelo" && a.variante ? " (todas as versões)" : ""}` : "sem referência ainda";
+  const refFaixa = prod?.variantes?.[a.variante] && a.ref_tipo === "variante" ? prod.variantes[a.variante] : prod?.ref;
+  const vendidoInfo = a.situacao === "vendido" ? `<div class="mini">Sumiu ${a.horas_ate_sumir != null ? `em ~${Math.round(a.horas_ate_sumir)} h após publicado` : ""} (${dataBr(a.vendido_em)})</div>` : "";
+
+  return `<article class="card ${st === "descartado" ? "apagado" : ""}" data-id="${a.id}">
+    ${fotoHtml(a)}
+    <div class="corpo">
+      <h3><a href="${urlSegura(a.url)}" target="_blank" rel="noopener">${esc(a.titulo)}</a></h3>
+      <div class="precos"><span class="preco">${brl(a.preco)}</span>
+        ${a.preco_inicial && a.preco < a.preco_inicial ? `<span class="riscado">${brl(a.preco_inicial)}</span>` : ""}
+        ${a.lucro != null ? `<span class="lucro">${a.lucro >= 0 ? "+" : ""}${brl(a.lucro)} (${pct(a.margem)})</span>` : ""}</div>
+      <div class="muted">${refTxt}</div>
+      ${faixaPreco(refFaixa, a.preco)}
+      <div class="muted">📍 ${esc(a.bairro || "bairro ?")}${(a.zona || a.cidade) && (a.zona || a.cidade) !== a.bairro ? " · " + esc(a.zona || a.cidade) : ""} · ${ha(a.publicado_em || a.primeiro_visto)}</div>
+      <div class="mini">${ICONE[a.categoria] || ""} ${esc(a.item_nome)}${a.variante ? " · " + esc(a.variante) : ""}${a.motivo ? " · " + esc(a.motivo) : ""}</div>
+      ${linhaNovo}${vendidoInfo}
+      <div class="badges">${badges.join("")}</div>
+      ${ia ? `<div class="resumo-ia">🤖 ${esc(ia.resumo)}</div>` : ""}
+      ${acomp}${riscos}${perguntas}${checklist}
+      ${a.situacao === "vendido" ? "" : `<div class="acoes">
+        <button class="btn ${st === "vou_ver" ? "ativo" : ""}" data-acao="vou_ver" data-id="${a.id}">📍 Vou ver</button>
+        <button class="btn ${st === "comprei" ? "ativo" : ""}" data-acao="comprei" data-id="${a.id}">🛒 Comprei</button>
+        <button class="btn ${st === "descartado" ? "ativo" : ""}" data-acao="descartado" data-id="${a.id}">🗑️</button>
+        <a class="btn primario" href="${urlSegura(a.url)}" target="_blank" rel="noopener">Abrir anúncio ↗</a>
+      </div>`}
+    </div></article>`;
+}
+
+// ---------------------------------------------------------------- filtros de anúncios
+const filtros = estado.filtros ||= {categoria: "", zona: "", risco: "", ordem: "margem", ocultarDescartados: true, texto: ""};
+function barraFiltros(lista) {
+  const cats = [...new Set(lista.map(a => a.categoria).filter(Boolean))];
+  const zonas = [...new Set(lista.map(a => a.zona).filter(Boolean))].sort();
+  const opt = (v, rot, sel) => `<option value="${esc(v)}" ${sel === v ? "selected" : ""}>${esc(rot)}</option>`;
+  return `<div class="filtros">
+    <select data-f="categoria" aria-label="Categoria">${opt("", "Todas as categorias", filtros.categoria)}${cats.map(c => opt(c, (ICONE[c] || "") + " " + (CAT_NOME[c] || c), filtros.categoria)).join("")}</select>
+    <select data-f="zona" aria-label="Região">${opt("", "Todas as regiões", filtros.zona)}${zonas.map(z => opt(z, z, filtros.zona)).join("")}</select>
+    <select data-f="risco" aria-label="Risco">${opt("", "Qualquer risco", filtros.risco)}${opt("baixo", "Só risco baixo", filtros.risco)}${opt("nao_alto", "Sem risco alto", filtros.risco)}</select>
+    <select data-f="ordem" aria-label="Ordenar">${opt("margem", "Maior margem", filtros.ordem)}${opt("lucro", "Maior lucro (R$)", filtros.ordem)}${opt("recente", "Mais recentes", filtros.ordem)}${opt("preco", "Menor preço", filtros.ordem)}</select>
+    <input data-f="texto" placeholder="Buscar…" value="${esc(filtros.texto)}" aria-label="Buscar">
+    ${filtros.item ? `<button class="btn ativo" data-limpar-item>${esc(produtoPorId[filtros.item]?.nome || filtros.item)} ✕</button>` : ""}
+    <label class="muted"><input type="checkbox" data-f="ocultarDescartados" ${filtros.ocultarDescartados ? "checked" : ""}> ocultar descartados</label>
+  </div>`;
+}
+function aplicarFiltros(lista) {
+  const t = filtros.texto.trim().toLowerCase();
+  let r = lista.filter(a =>
+    (!filtros.categoria || a.categoria === filtros.categoria) &&
+    (!filtros.item || a.item_id === filtros.item) &&
+    (!filtros.zona || a.zona === filtros.zona) &&
+    (!filtros.risco || (filtros.risco === "baixo" ? a.analise?.nivel_risco === "baixo" : a.analise?.nivel_risco !== "alto")) &&
+    (!filtros.ocultarDescartados || estado.status[a.id]?.estado !== "descartado") &&
+    (!t || (a.titulo + " " + a.item_nome + " " + (a.bairro || "")).toLowerCase().includes(t)));
+  const chave = {margem: a => -(a.margem ?? -999), lucro: a => -(a.lucro ?? -1e9), preco: a => a.preco, recente: a => -new Date(a.publicado_em || a.primeiro_visto)}[filtros.ordem];
+  return r.sort((x, y) => chave(x) - chave(y));
+}
+
+// ---------------------------------------------------------------- abas
+const ops = () => Object.entries(estado.status).filter(([, v]) => v.estado === "comprei" || v.estado === "vendi");
+const ABAS = [
+  {id: "oportunidades", rot: "🔔 Oportunidades", cont: () => DADOS.anuncios.filter(a => a.situacao === "oportunidade").length},
+  {id: "observacao", rot: "👀 Em observação", cont: () => DADOS.anuncios.filter(a => a.situacao === "observacao").length},
+  {id: "produtos", rot: "📦 Produtos", cont: () => DADOS.produtos.length},
+  {id: "passagens", rot: "✈️ Passagens", cont: () => DADOS.passagens.length},
+  {id: "operacoes", rot: "💰 Minhas operações", cont: () => ops().length},
+  {id: "execucoes", rot: "⚙️ Execuções"},
+];
+let abaAtual = location.hash.slice(1) || estado.aba || "oportunidades";
+
+function renderAbas() {
+  document.getElementById("abas").innerHTML = ABAS.map(a =>
+    `<button role="tab" aria-selected="${a.id === abaAtual}" data-aba="${a.id}">${a.rot}${a.cont ? `<span class="cont">${a.cont()}</span>` : ""}</button>`).join("");
+}
+
+function renderListaAnuncios(situacao, explicacao) {
+  const base = DADOS.anuncios.filter(a => a.situacao === situacao);
+  const lista = aplicarFiltros(base);
+  let html = `<p class="muted">${explicacao}</p>` + barraFiltros(base);
+  html += lista.length ? `<div class="grade">${lista.map(cardAnuncio).join("")}</div>`
+    : `<div class="vazio">Nada por aqui${base.length ? " com estes filtros" : " agora"}. O robô roda a cada 2 horas.</div>`;
+  if (situacao === "oportunidade" && DADOS.vendidos.length) {
+    html += `<h2>⏱️ Achados que já sumiram (últimos 30 dias)</h2><p class="muted">Oportunidades que saíram do ar: mostra quanto tempo um achado dura. Se somem em poucas horas, vale responder rápido.</p>
+      <div class="grade">${DADOS.vendidos.slice(0, 24).map(cardAnuncio).join("")}</div>`;
+  }
+  return html;
+}
+
+function renderProdutos() {
+  const porCat = {};
+  for (const p of DADOS.produtos) (porCat[p.categoria] ||= []).push(p);
+  let html = `<p class="muted">Preço de mercado de usados (anúncios de pessoa física dos últimos dias) e as melhores ofertas de <b>novo</b> em lojas, pesquisadas na web pelo Claude a cada poucos dias. Um usado raramente revende acima do preço do novo.</p>`;
+  for (const [cat, lista] of Object.entries(porCat)) {
+    html += `<h2>${ICONE[cat] || ""} ${CAT_NOME[cat] || cat}</h2><div class="grade">` + lista.map(p => {
+      const novo = p.novo;
+      const ofertas = (novo?.ofertas || []).slice(0, 4);
+      const novoMin = ofertas.length ? Math.min(...ofertas.map(o => o.preco)) : null;
+      const teto = novoMin && p.ref && p.ref.mediana > novoMin * 0.9
+        ? `<div class="mini">⚠️ Usado está perto do preço do novo: margem de revenda apertada.</div>` : "";
+      return `<article class="card">
+        <div class="foto">${p.foto ? `<img src="${urlSegura(p.foto)}" alt="Foto de ${esc(p.nome)}" loading="lazy" referrerpolicy="no-referrer" ${imgFallback(p.categoria)}>` : `<span class="sem">${ICONE[p.categoria] || "📦"}</span>`}
+          <div class="selo">${p.oportunidades ? `<span class="pill">🔥 ${p.oportunidades} oportunidade(s)</span>` : ""}${p.observacao ? `<span class="pill">👀 ${p.observacao}</span>` : ""}</div></div>
+        <div class="corpo">
+          <h3>${esc(p.nome)}</h3>
+          ${p.ref ? `<div class="precos"><span class="preco">${brl(p.ref.mediana)}</span><span class="muted">mediana de usado · ${p.ref.n} anúncios</span></div>${faixaPreco(p.ref, null)}`
+                  : `<div class="muted">Ainda sem anúncios suficientes para calcular o preço de mercado.</div>`}
+          ${Object.keys(p.variantes).length ? `<div class="chips">${Object.entries(p.variantes).map(([v, r]) => `<span class="chip" data-tip="${r.n} anúncios · faixa ${brl(r.p25)}–${brl(r.p75)}">${esc(v)}: <b>${brl(r.mediana)}</b></span>`).join("")}</div>` : ""}
+          ${p.horas_mediana_sumir ? `<div class="mini">⏱️ Achados deste produto somem em ~${Math.round(p.horas_mediana_sumir)} h</div>` : ""}
+          ${novo ? `<div><div class="muted">🏬 Novo em lojas ${novoMin ? `a partir de <b>${brl(novoMin)}</b>` : ""} · ${ha(novo.pesquisado_em)}</div>
+              <div class="ofertas">${ofertas.map(o => `<a href="${urlSegura(o.url)}" target="_blank" rel="noopener"><span>${esc(o.loja)}${o.observacao ? ` <span class="mini">(${esc(o.observacao)})</span>` : ""}</span><b>${brl(o.preco)}</b></a>`).join("")}</div>
+              ${novo.preco_usado_tipico ? `<div class="mini">Usado típico na web: ${brl(novo.preco_usado_tipico)}</div>` : ""}
+              ${novo.resumo ? `<div class="resumo-ia">🤖 ${esc(novo.resumo)}</div>` : ""}${teto}</div>`
+            : `<div class="mini">🏬 Preço de novo: aguardando a pesquisa na web.</div>`}
+          <div class="acoes"><button class="btn" data-ver-produto="${p.id}">Ver anúncios deste produto</button></div>
+        </div></article>`;
+    }).join("") + `</div>`;
+  }
+  return html;
+}
+
+function renderPassagens() {
+  if (!DADOS.passagens.length) return `<div class="vazio">Nenhuma rota configurada. Edite <code>config/passagens.yaml</code>.</div>`;
+  return `<p class="muted">O Claude pesquisa na web (Google Flights, Kayak, Decolar, companhias…) cerca de 1 vez por dia por rota. Preços de passagem mudam a toda hora: <b>confirme no link antes de comprar</b>.</p><div class="grade">` +
+    DADOS.passagens.map(r => {
+      const u = r.ultima;
+      const voos = (u?.voos || []).slice().sort((a, b) => a.preco - b.preco);
+      const melhor = voos[0];
+      const bom = melhor && r.preco_alvo && melhor.preco <= r.preco_alvo;
+      const minHist = r.historico.length ? Math.min(...r.historico.map(h => h.preco)) : null;
+      return `<article class="card">
+        <div class="corpo">
+          <h3>✈️ ${esc(r.nome)} ${r.ativa === false ? `<span class="pill">pausada</span>` : ""}</h3>
+          <div class="muted">${esc((r.destinos || []).join(" · "))}<br>${esc(r.periodo)} · ${r.min_dias || "?"}–${r.max_dias || "?"} dias · alvo ${brl(r.preco_alvo)}</div>
+          ${melhor ? `<div class="precos"><span class="preco">${brl(melhor.preco)}</span>
+              <span class="pill"><span class="dot" style="background:${bom ? "var(--good)" : "var(--warning)"}"></span>${bom ? "✓ abaixo do alvo" : "acima do alvo"}</span>
+              ${minHist && melhor.preco <= minHist ? `<span class="pill">📉 menor já visto</span>` : ""}</div>
+              <div class="mini">ida e volta por adulto · pesquisado ${ha(u.pesquisado_em)}</div>`
+            : `<div class="muted">${r.erro ? "Última pesquisa falhou: " + esc(r.erro) : "Aguardando a primeira pesquisa."}</div>`}
+          ${sparkline(r.historico, r.preco_alvo)}
+          ${voos.length ? `<div class="ofertas">${voos.slice(0, 5).map(v => `<a href="${urlSegura(v.url)}" target="_blank" rel="noopener"><span>${esc(v.destino)} · ${esc(diaMes(v.ida))}${v.volta ? " → " + esc(diaMes(v.volta)) : ""}<br><span class="mini">${esc(v.companhia)} · ${esc(v.escalas)} · ${esc(v.fonte)}</span></span><b>${brl(v.preco)}</b></a>`).join("")}</div>` : ""}
+          ${u?.resumo ? `<div class="resumo-ia">🤖 ${esc(u.resumo)}</div>` : ""}
+        </div></article>`;
+    }).join("") + `</div>`;
+}
+
+function renderOperacoes() {
+  const linhas = ops().map(([id, v]) => ({id, ...v, lucro: v.preco_venda != null ? v.preco_venda - v.preco_compra : null,
+    dias: v.data_venda ? Math.max(0, Math.round((new Date(v.data_venda) - new Date(v.data_compra)) / 86400000)) : null}));
+  const vendidas = linhas.filter(l => l.lucro != null);
+  const total = vendidas.reduce((s, l) => s + l.lucro, 0);
+  const investido = linhas.filter(l => l.lucro == null).reduce((s, l) => s + l.preco_compra, 0);
+  const porCat = {};
+  for (const l of vendidas) { const c = porCat[l.categoria || "outros"] ||= {n: 0, lucro: 0, dias: 0}; c.n++; c.lucro += l.lucro; c.dias += l.dias || 0; }
+  let html = `<p class="muted">Registro das suas compras e vendas. Fica salvo <b>só neste navegador</b>: use Exportar/Importar para levar a outro aparelho.</p>
+    <div class="tiles"><div class="tile"><div class="rot">Lucro realizado</div><div class="val">${brl(total)}</div></div>
+    <div class="tile"><div class="rot">Operações concluídas</div><div class="val">${vendidas.length}</div></div>
+    <div class="tile"><div class="rot">Em estoque (investido)</div><div class="val">${brl(investido)}</div></div></div>
+    <div class="filtros" style="margin-top:12px"><button class="btn" id="exportar">⬇️ Exportar</button><label class="btn">⬆️ Importar<input type="file" id="importar" accept="application/json" hidden></label></div>`;
+  if (!linhas.length) return html + `<div class="vazio">Quando você marcar 🛒 Comprei num card, a operação aparece aqui.</div>`;
+  html += `<h2>Ranking por categoria</h2><table><thead><tr><th>Categoria</th><th class="num">Vendas</th><th class="num">Lucro total</th><th class="num">Lucro médio</th><th class="num">Dias até vender</th></tr></thead><tbody>` +
+    Object.entries(porCat).sort((a, b) => b[1].lucro - a[1].lucro).map(([c, v]) => `<tr><td>${ICONE[c] || ""} ${esc(CAT_NOME[c] || c)}</td><td class="num">${v.n}</td><td class="num">${brl(v.lucro)}</td><td class="num">${brl(v.lucro / v.n)}</td><td class="num">${(v.dias / v.n).toFixed(1)}</td></tr>`).join("") +
+    `</tbody></table><h2>Operações</h2><table><thead><tr><th>Produto</th><th class="num">Compra</th><th class="num">Venda</th><th class="num">Lucro</th><th class="num">Dias</th><th></th></tr></thead><tbody>` +
+    linhas.sort((a, b) => new Date(b.data_compra) - new Date(a.data_compra)).map(l => `<tr><td>${esc(l.titulo)}<div class="mini">comprado em ${dataBr(l.data_compra)}</div></td>
+      <td class="num">${brl(l.preco_compra)}</td><td class="num">${l.preco_venda != null ? brl(l.preco_venda) : "—"}</td>
+      <td class="num">${l.lucro != null ? brl(l.lucro) : "—"}</td><td class="num">${l.dias ?? "—"}</td>
+      <td>${l.lucro == null ? `<button class="btn" data-acao="vendi" data-id="${l.id}">💰 Vendi</button>` : ""} <button class="btn" data-acao="remover" data-id="${l.id}" aria-label="Remover operação">✕</button></td></tr>`).join("") + `</tbody></table>`;
+  return html;
+}
+
+function renderExecucoes() {
+  const r = DADOS.regras;
+  return `<p class="muted">Regras atuais: orçamento até ${brl(r.orcamento_max)}, margem mínima ${r.margem_min_pct}% e lucro mínimo ${brl(r.lucro_min_reais)}, desconto de negociação ${r.desconto_negociacao_pct}%, custo fixo ${brl(r.custo_fixo_reais)}, anúncios de até ${r.idade_max_dias} dias. Regiões: ${esc((r.zonas_aceitas || []).join(", "))}. Edite em <code>config/regras.yaml</code>.</p>
+    <table><thead><tr><th>Início</th><th class="num">Coletados</th><th class="num">Novos</th><th class="num">Oportunidades</th><th class="num">Análises IA</th><th class="num">Custo (US$)</th><th>Erros</th></tr></thead><tbody>` +
+    DADOS.execucoes.map(e => `<tr><td>${dataBr(e.inicio)}</td><td class="num">${e.coletados}</td><td class="num">${e.novos}</td><td class="num">${e.oportunidades} (${e.novas} novas)</td><td class="num">${e.ia}</td><td class="num">${(e.custo || 0).toFixed(3)}</td>
+      <td>${e.erros.length ? `<details><summary>${e.erros.length} erro(s)</summary><ul>${e.erros.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>` : "—"}</td></tr>`).join("") + `</tbody></table>`;
+}
+
+function render() {
+  renderAbas();
+  estado.aba = abaAtual; salvar();
+  const el = document.getElementById("conteudo");
+  el.innerHTML = {
+    oportunidades: () => renderListaAnuncios("oportunidade", `Anúncios com margem estimada de pelo menos ${DADOS.regras.margem_min_pct}% e lucro de pelo menos ${brl(DADOS.regras.lucro_min_reais)} sobre a mediana do mercado, já descontados ${DADOS.regras.desconto_negociacao_pct}% de negociação na revenda e ${brl(DADOS.regras.custo_fixo_reais)} de custos.`),
+    observacao: () => renderListaAnuncios("observacao", "Quase lá: margem entre a metade e o alvo, ou produtos ainda com poucos anúncios para comparar. Bons para negociar ou acompanhar se o preço cai."),
+    produtos: renderProdutos, passagens: renderPassagens, operacoes: renderOperacoes, execucoes: renderExecucoes,
+  }[abaAtual]?.() ?? "";
+}
+
+// ---------------------------------------------------------------- topo
+function renderTopo() {
+  const ger = new Date(DADOS.gerado_em);
+  document.getElementById("atualizado").textContent = `Atualizado ${ha(DADOS.gerado_em)} (${dataBr(DADOS.gerado_em)})`;
+  const avisos = [];
+  if ((Date.now() - ger) / 3600000 > 8) avisos.push("⏳ O painel não é atualizado há mais de 8 horas. Confira a aba Actions do repositório.");
+  const ult = DADOS.execucoes[0];
+  if (ult && ult.erros.some(e => /bloque|403|anti-robô/i.test(e))) avisos.push("🚧 A OLX bloqueou parte das buscas na última execução. Os dados podem estar incompletos.");
+  if (!DADOS.execucoes.length) avisos.push("🚀 Ainda não houve nenhuma execução. Rode o workflow manualmente em Actions.");
+  document.getElementById("avisos").innerHTML = avisos.map(a => `<div class="aviso">${a}</div>`).join("");
+  const opp = DADOS.anuncios.filter(a => a.situacao === "oportunidade");
+  const novas = visitaAnterior ? opp.filter(a => new Date(a.virou_oportunidade_em || a.primeiro_visto) > visitaAnterior).length : opp.length;
+  const lucroPot = opp.reduce((s, a) => s + Math.max(0, a.lucro || 0), 0);
+  const realizado = ops().reduce((s, [, v]) => s + (v.preco_venda != null ? v.preco_venda - v.preco_compra : 0), 0);
+  const tile = (r, v) => `<div class="tile"><div class="rot">${r}</div><div class="val">${v}</div></div>`;
+  document.getElementById("tiles").innerHTML =
+    tile("🔔 Oportunidades agora", opp.length) + tile("🆕 Novas desde sua última visita", novas) +
+    tile("💵 Lucro potencial somado", brl(lucroPot)) + tile("👀 Em observação", DADOS.anuncios.filter(a => a.situacao === "observacao").length) +
+    tile("💰 Lucro realizado", brl(realizado));
+}
+
+// ---------------------------------------------------------------- eventos
+document.addEventListener("click", e => {
+  const aba = e.target.closest("[data-aba]");
+  if (aba) { abaAtual = aba.dataset.aba; history.replaceState(null, "", "#" + abaAtual); render(); return; }
+  const vp = e.target.closest("[data-ver-produto]");
+  if (vp) {
+    const p = produtoPorId[vp.dataset.verProduto];
+    Object.assign(filtros, {categoria: "", texto: "", item: p.id}); salvar();
+    abaAtual = DADOS.anuncios.some(a => a.item_id === p.id && a.situacao === "oportunidade") ? "oportunidades" : "observacao";
+    render(); return;
+  }
+  if (e.target.closest("[data-limpar-item]")) { filtros.item = ""; salvar(); render(); return; }
+  const f = e.target.closest("[data-foto]");
+  if (f) {
+    const a = [...DADOS.anuncios, ...DADOS.vendidos].find(x => x.id === f.dataset.id);
+    const box = f.closest(".foto");
+    const idx = (Number(box.dataset.idx) + Number(f.dataset.foto) + a.imagens.length) % a.imagens.length;
+    box.dataset.idx = idx; box.querySelector("img").src = a.imagens[idx]; return;
+  }
+  const b = e.target.closest("[data-acao]");
+  if (!b) return;
+  const id = b.dataset.id, acao = b.dataset.acao;
+  const a = DADOS.anuncios.find(x => x.id === id);
+  const atual = estado.status[id] || {};
+  if (acao === "remover") { if (confirm("Remover esta operação?")) delete estado.status[id]; }
+  else if (acao === "comprei") {
+    const v = prompt("Quanto você pagou? (R$)", a ? Math.round(a.preco) : "");
+    if (v === null) return;
+    estado.status[id] = {...atual, estado: "comprei", preco_compra: Number(String(v).replace(/\D/g, "")), data_compra: new Date().toISOString(),
+      titulo: a?.titulo || atual.titulo, categoria: a?.categoria || atual.categoria, item_id: a?.item_id || atual.item_id};
+  } else if (acao === "vendi") {
+    const v = prompt("Por quanto você vendeu? (R$)");
+    if (v === null) return;
+    estado.status[id] = {...atual, estado: "vendi", preco_venda: Number(String(v).replace(/\D/g, "")), data_venda: new Date().toISOString()};
+  } else {
+    if (atual.estado === acao) delete estado.status[id];
+    else estado.status[id] = {...atual, estado: acao, titulo: a?.titulo, categoria: a?.categoria};
+  }
+  salvar(); renderTopo(); render();
+});
+document.addEventListener("change", e => {
+  const f = e.target.dataset.f;
+  if (f) { filtros[f] = e.target.type === "checkbox" ? e.target.checked : e.target.value; salvar(); render(); }
+  if (e.target.id === "importar" && e.target.files[0]) {
+    e.target.files[0].text().then(t => {
+      try { const dados = JSON.parse(t); Object.assign(estado.status, dados.status || {}); salvar(); renderTopo(); render(); alert("Importado!"); }
+      catch { alert("Arquivo inválido."); }
+    });
+  }
+});
+document.addEventListener("input", e => {
+  if (e.target.dataset.f === "texto") {
+    filtros.texto = e.target.value; salvar();
+    clearTimeout(window._t); window._t = setTimeout(() => { const pos = e.target.selectionStart; render(); const i = document.querySelector('[data-f="texto"]'); i.focus(); i.setSelectionRange(pos, pos); }, 250);
+  }
+});
+document.addEventListener("click", e => {
+  if (e.target.id !== "exportar") return;
+  const blob = new Blob([JSON.stringify({status: estado.status}, null, 1)], {type: "application/json"});
+  const a = Object.assign(document.createElement("a"), {href: URL.createObjectURL(blob), download: `revenda-operacoes-${new Date().toISOString().slice(0, 10)}.json`});
+  a.click();
+});
+
+renderTopo();
+render();
+</script>
+</body>
+</html>

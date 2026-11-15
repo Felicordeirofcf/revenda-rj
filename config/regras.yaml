@@ -1,0 +1,89 @@
+# Regras de negócio do robô de revenda. Edite à vontade: o robô relê este arquivo a cada execução.
+
+# Teto de preço por compra (R$). Anúncios acima disso não viram alerta.
+orcamento_max: 3000
+
+# Margem mínima para valer a ida: lucro estimado / preço pago.
+margem_min_pct: 20
+
+# Lucro mínimo em reais (evita alertas de R$ 40 de lucro em itens baratos).
+lucro_min_reais: 100
+
+# Como estimamos o preço de revenda:
+#   venda_estimada = mediana dos anúncios parecidos x (1 - desconto_negociacao_pct/100)
+#   lucro = venda_estimada - preço pedido - custo_fixo_reais - taxa_venda_pct% da venda
+desconto_negociacao_pct: 7      # quem compra de você também pechincha
+custo_fixo_reais: 40            # Uber/ônibus, tempo, película/capinha para revender
+taxa_venda_pct: 0               # 0 vendendo direto na OLX/Facebook; ~12-16 no Mercado Livre
+
+# Referência de preço
+referencia_dias: 30             # janela de anúncios usada para calcular a mediana
+referencia_min_amostras: 5      # menos que isso = referência fraca, não gera alerta
+incluir_lojistas_na_referencia: false
+alertar_lojistas: false         # anúncios de loja raramente são achados
+
+# Preço abaixo de X% da mediana é suspeito (golpe, peça, bloqueado). Vira alerta com risco alto.
+preco_suspeito_pct: 45
+
+# Só considera anúncios publicados nos últimos N dias (os achados somem rápido).
+idade_max_dias: 7
+
+# Regiões aceitas. Municípios inteiros e/ou zonas do Rio (ver src/regiao.py).
+municipios_aceitos: ["Rio de Janeiro", "Niterói"]
+zonas_aceitas: ["Zona Sul", "Zona Norte", "Centro", "Barra/Jacarepaguá", "Zona Oeste", "Niterói"]
+# Anúncio sem bairro informado, mas no município aceito: aceitar?
+aceitar_bairro_desconhecido: true
+
+# Termos que tiram o anúncio de tudo (referência e alertas). Regex no título minúsculo e sem acento.
+# "acessorios": só exclui quando o termo vem ANTES do nome do produto ("Capa iPhone 13" sai;
+#               "iPhone 13 com capa" fica).
+# "negocio": exclui sempre (não é venda do produto inteiro e funcionando). Ignorado quando vem
+#            negado logo antes ("sem defeito", "nunca bloqueado").
+excluir_sempre:
+  acessorios:
+    - "\\bcapas?\\b|\\bcapinhas?\\b|\\bpeliculas?\\b|\\bcases?\\b|\\bcarregador\\b|\\bcabo\\b"
+    - "\\bsuporte\\b|\\bpulseiras?\\b|\\bcontroles?\\b|\\bjoy-?cons?\\b|\\bjogos?\\b|\\bmidias?\\b"
+    - "\\bbateria\\b|\\btela\\b|\\bdisplay\\b|\\bcarcaca\\b|\\btampa\\b|\\bcooler\\b|\\bbase\\b|\\bdock\\b"
+  negocio:
+    - "\\bso a caixa\\b|\\bcaixa vazia\\b|\\bsomente a caixa\\b"
+    - "\\bcompro\\b|\\bprocuro\\b|\\bpago bem\\b"
+    - "\\bso troco\\b|\\bapenas troca\\b|\\bsomente troca\\b"
+    - "\\balugo\\b|\\baluguel\\b|\\bloca(cao|-se)\\b"
+    - "\\b(para|pra|retirada de|venda de) pecas\\b|\\bsucata\\b|\\bplaca (mae|logica)\\b"
+    - "\\bdefeito\\b|\\bdefeituos[oa]\\b|\\bnao liga\\b|\\bqueimad[oa]\\b|\\bmolhad[oa]\\b"
+    - "\\bbloquead[oa]\\b|\\bbloqueio\\b|\\bconta vinculada\\b"
+    - "\\breplica\\b|\\bxing ling\\b|\\bpirata\\b|\\bdesbloqueado (por|via) software\\b"
+    - "\\b(tela|vidro) (quebrad|trincad|rachad|manchad)[oa]\\b|\\btrincad[oa]\\b"
+  negacoes: ["sem", "nenhum", "nenhuma", "nunca", "zero", "nao tem", "nao esta", "livre de", "nao e"]
+
+# Fontes
+fontes:
+  olx:
+    ativa: true
+    # {q} = termo de busca. sf=1 ordena por mais recentes.
+    url_busca: "https://www.olx.com.br/estado-rj/rio-de-janeiro-e-regiao?q={q}&sf=1"
+    paginas: 2
+    intervalo_seg: 2.5
+    max_detalhes_por_execucao: 40   # páginas de anúncio abertas para ler a descrição
+
+# IA (Claude) para triagem dos anúncios. Só analisa os que já passaram na conta de margem.
+ia:
+  modelo: "claude-haiku-5-5"
+  effort: "low"
+  max_analises_por_execucao: 40
+
+# Pesquisa na web com o Claude (busca da Anthropic, ~US$ 0,01 por busca + tokens).
+# Traz o preço NOVO de cada produto em lojas (teto de revenda e "melhores ofertas") e passagens aéreas.
+pesquisa_web:
+  ativa: true
+  modelo: "claude-sonnet-5-5"
+  effort: "low"
+  max_buscas_por_pesquisa: 3
+  produtos:
+    refazer_a_cada_dias: 7          # cada produto é pesquisado de novo a cada N dias
+    max_por_execucao: 3             # espalha o custo ao longo das execuções
+  passagens:
+    refazer_a_cada_horas: 20        # ~1 vez por dia por rota
+    max_por_execucao: 3
+  # Teto mensal estimado (US$). Se o gasto do mês passar disso, as pesquisas param até o mês virar.
+  teto_mensal_usd: 15

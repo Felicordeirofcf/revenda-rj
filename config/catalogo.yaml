@@ -1,0 +1,230 @@
+# Catálogo de produtos monitorados.
+#
+# Cada item:
+#   id         identificador único (sem espaços)
+#   nome       nome exibido no painel
+#   categoria  celular | console | tablet | relogio | notebook | gpu | drone
+#   buscas     termos pesquisados na OLX
+#   padrao     regex que o TÍTULO (minúsculo, sem acento) precisa casar para ser este produto
+#   excluir    regex opcional que tira o anúncio deste produto (ex.: "pro" no iPhone 13 comum)
+#   variante   "armazenamento" separa 64/128/256 GB na comparação de preço (opcional)
+#   preco_min  abaixo disso quase sempre é acessório/peça (não entra na referência)
+#
+# Para adicionar um produto, copie um bloco e ajuste. Para pausar, comente com #.
+
+itens:
+  # ---------------------------------------------------------------- Celulares Apple
+  - id: iphone-11
+    nome: iPhone 11
+    categoria: celular
+    buscas: ["iphone 11"]
+    padrao: "iphone\\s*11(?!\\s*pro)"
+    variante: armazenamento
+    preco_min: 600
+  - id: iphone-11-pro
+    nome: iPhone 11 Pro / Pro Max
+    categoria: celular
+    buscas: ["iphone 11 pro"]
+    padrao: "iphone\\s*11\\s*pro"
+    variante: armazenamento
+    preco_min: 800
+  - id: iphone-12
+    nome: iPhone 12
+    categoria: celular
+    buscas: ["iphone 12"]
+    padrao: "iphone\\s*12(?!\\s*(pro|mini))"
+    variante: armazenamento
+    preco_min: 800
+  - id: iphone-12-pro
+    nome: iPhone 12 Pro / Pro Max
+    categoria: celular
+    buscas: ["iphone 12 pro"]
+    padrao: "iphone\\s*12\\s*pro"
+    variante: armazenamento
+    preco_min: 1100
+  - id: iphone-13
+    nome: iPhone 13
+    categoria: celular
+    buscas: ["iphone 13"]
+    padrao: "iphone\\s*13(?!\\s*(pro|mini))"
+    variante: armazenamento
+    preco_min: 1100
+  - id: iphone-13-pro
+    nome: iPhone 13 Pro / Pro Max
+    categoria: celular
+    buscas: ["iphone 13 pro"]
+    padrao: "iphone\\s*13\\s*pro"
+    variante: armazenamento
+    preco_min: 1500
+  - id: iphone-14
+    nome: iPhone 14 / 14 Plus
+    categoria: celular
+    buscas: ["iphone 14"]
+    padrao: "iphone\\s*14(?!\\s*pro)"
+    variante: armazenamento
+    preco_min: 1500
+
+  # ---------------------------------------------------------------- Celulares Samsung
+  - id: galaxy-s21
+    nome: Galaxy S21 / S21 FE / S21+
+    categoria: celular
+    buscas: ["galaxy s21"]
+    padrao: "\\bs\\s*21\\b(?!\\s*ultra)"
+    excluir: "\\bultra\\b"
+    variante: armazenamento
+    preco_min: 500
+  - id: galaxy-s22
+    nome: Galaxy S22 / S22+
+    categoria: celular
+    buscas: ["galaxy s22"]
+    padrao: "\\bs\\s*22\\b"
+    excluir: "\\bultra\\b"
+    variante: armazenamento
+    preco_min: 700
+  - id: galaxy-s23
+    nome: Galaxy S23 / S23 FE
+    categoria: celular
+    buscas: ["galaxy s23"]
+    padrao: "\\bs\\s*23\\b"
+    excluir: "\\bultra\\b"
+    variante: armazenamento
+    preco_min: 900
+  - id: galaxy-a55
+    nome: Galaxy A54 / A55
+    categoria: celular
+    buscas: ["galaxy a54", "galaxy a55"]
+    padrao: "\\ba\\s*5[45]\\b"
+    variante: armazenamento
+    preco_min: 500
+
+  # ---------------------------------------------------------------- Consoles
+  - id: ps5
+    nome: PlayStation 5
+    categoria: console
+    buscas: ["ps5", "playstation 5"]
+    padrao: "\\bps\\s*5\\b|playstation\\s*5"
+    excluir: "\\bportal\\b|\\bvr\\s*2?\\b|\\bvolante\\b"
+    preco_min: 1500
+  - id: xbox-series-s
+    nome: Xbox Series S
+    categoria: console
+    buscas: ["xbox series s"]
+    padrao: "series\\s*s\\b"
+    preco_min: 1000
+  - id: xbox-series-x
+    nome: Xbox Series X
+    categoria: console
+    buscas: ["xbox series x"]
+    padrao: "series\\s*x\\b"
+    preco_min: 1800
+  - id: switch-oled
+    nome: Nintendo Switch OLED
+    categoria: console
+    buscas: ["switch oled"]
+    padrao: "switch.*oled|oled.*switch"
+    preco_min: 1000
+  - id: switch-v2
+    nome: Nintendo Switch (comum)
+    categoria: console
+    buscas: ["nintendo switch"]
+    padrao: "nintendo\\s*switch"
+    excluir: "oled|lite|switch\\s*2"
+    preco_min: 800
+
+  # ---------------------------------------------------------------- Tablets e relógios
+  - id: ipad-9-10
+    nome: iPad 9ª / 10ª geração
+    categoria: tablet
+    buscas: ["ipad 9", "ipad 10"]
+    padrao: "ipad\\s*(9|10)\\b|ipad.*(9|10)a?\\s*gera"
+    excluir: "\\bair\\b|\\bpro\\b|\\bmini\\b"
+    variante: armazenamento
+    preco_min: 900
+  - id: ipad-air
+    nome: iPad Air (4ª/5ª)
+    categoria: tablet
+    buscas: ["ipad air"]
+    padrao: "ipad\\s*air"
+    variante: armazenamento
+    preco_min: 1300
+  - id: apple-watch
+    nome: Apple Watch SE / Series 7-9
+    categoria: relogio
+    buscas: ["apple watch"]
+    padrao: "apple\\s*watch"
+    excluir: "\\bultra\\b"
+    preco_min: 500
+
+  # ---------------------------------------------------------------- Notebooks e PC
+  - id: macbook-air-m1
+    nome: MacBook Air M1
+    categoria: notebook
+    buscas: ["macbook air m1"]
+    padrao: "macbook.*\\bm1\\b"
+    excluir: "\\bpro\\b"
+    variante: armazenamento
+    preco_min: 1800
+  - id: rtx-3060
+    nome: RTX 3060 / 3060 Ti
+    categoria: gpu
+    buscas: ["rtx 3060"]
+    padrao: "rtx\\s*3060"
+    excluir: "notebook|\\bpc\\b|computador|gamer completo"
+    preco_min: 700
+  - id: rtx-4060
+    nome: RTX 4060 / 4060 Ti
+    categoria: gpu
+    buscas: ["rtx 4060"]
+    padrao: "rtx\\s*4060"
+    excluir: "notebook|\\bpc\\b|computador|gamer completo"
+    preco_min: 1000
+
+  # ---------------------------------------------------------------- Drones
+  - id: dji-mini
+    nome: DJI Mini 2 / Mini 3
+    categoria: drone
+    buscas: ["dji mini"]
+    padrao: "dji.*mini\\s*(2|3|se)|mini\\s*(2|3|se).*dji"
+    preco_min: 1000
+
+# Checklist do que conferir pessoalmente, por categoria (aparece em cada alerta).
+checklists:
+  celular:
+    - "Encontrar em local público e movimentado (shopping, estação de metrô), de dia"
+    - "IMEI: *#06# e consultar em celularseguro.mj.gov.br (roubo/furto)"
+    - "Sem conta logada: iCloud/Buscar iPhone desativado ou conta Google removida"
+    - "Saúde da bateria (iPhone: Ajustes > Bateria; acima de 80%)"
+    - "Ajustes > Geral > Sobre: peças e histórico (tela/bateria 'desconhecida' = trocada)"
+    - "Testar Face ID/digital, câmeras, alto-falante, microfone (ligação), chip e Wi-Fi"
+    - "Nota fiscal ou caixa com IMEI igual ao do aparelho"
+  console:
+    - "Ligar na TV do local ou levar um monitor/HDMI; jogar 10 minutos"
+    - "Testar leitor de disco (se tiver) e todas as portas USB"
+    - "Ver se a conta foi removida e se o console não está banido (entrar na loja online)"
+    - "Controles: analógicos sem drift, gatilhos e vibração"
+    - "Barulho de ventoinha e temperatura após uso"
+    - "Nota fiscal / número de série batendo com a caixa"
+  tablet:
+    - "Sem iCloud/Buscar iPad ativo"
+    - "Saúde da bateria e carregamento"
+    - "Tela: manchas, pixels mortos, touch em toda a área"
+    - "Câmeras, alto-falantes, Wi-Fi; se for celular, testar chip"
+  relogio:
+    - "Desemparelhado do iPhone do vendedor (sem bloqueio de ativação)"
+    - "Saúde da bateria e carregamento no carregador original"
+    - "Tela sem riscos profundos, coroa e botão funcionando"
+  notebook:
+    - "Sem senha de firmware/BIOS e sem conta da empresa (MDM) — macOS: Ajustes > Geral"
+    - "Ciclos e saúde da bateria (macOS: Informações do Sistema > Energia)"
+    - "Teclado completo (abrir um editor e testar todas as teclas), trackpad, portas"
+    - "Tela: manchas, pixels mortos, dobradiça firme"
+    - "Rodar algo pesado 5 minutos e ver aquecimento"
+  gpu:
+    - "Ver funcionando num PC (do vendedor) rodando um benchmark ou jogo por 10 minutos"
+    - "Temperatura, artefatos na imagem, barulho das ventoinhas"
+    - "Perguntar se foi usada em mineração; conferir lacres/parafusos"
+    - "Nota fiscal (garantia de fábrica pode ser transferível)"
+  drone:
+    - "Desvinculado da conta DJI do vendedor"
+    - "Ligar, parear com o controle e decolar/pairar alguns minutos"
+    - "Gimbal e câmera, hélices e baterias (ciclos e inchaço)"

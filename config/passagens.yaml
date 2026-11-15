@@ -1,0 +1,29 @@
+# Rotas de passagens aéreas monitoradas. O Claude pesquisa na web ~1x por dia por rota.
+#
+#   id         identificador único
+#   nome       nome exibido no card
+#   origem     de onde sai (padrão: Rio de Janeiro, GIG ou SDU)
+#   destinos   um ou mais destinos (a pesquisa compara todos)
+#   periodo    quando quer viajar, em texto livre ("janeiro de 2027", "feriado de Carnaval 2027")
+#   min_dias / max_dias  duração da estadia
+#   preco_alvo alerta quando aparecer passagem ida e volta por pessoa até este valor (R$)
+#   ativa      false pausa a rota
+#
+# ⚠️ As rotas abaixo são EXEMPLOS. Troque pelos seus destinos e datas.
+rotas:
+  - id: nordeste-jan
+    nome: Nordeste em janeiro
+    destinos: ["Maceió (MCZ)", "Recife (REC)", "Salvador (SSA)"]
+    periodo: "janeiro de 2027"
+    min_dias: 7
+    max_dias: 12
+    preco_alvo: 900
+    ativa: true
+  - id: sp-feriado
+    nome: São Paulo no próximo feriado
+    destinos: ["São Paulo (GRU ou CGH)"]
+    periodo: "próximo feriado prolongado nos próximos 3 meses"
+    min_dias: 2
+    max_dias: 4
+    preco_alvo: 350
+    ativa: true

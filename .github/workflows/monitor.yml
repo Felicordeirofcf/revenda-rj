@@ -1,0 +1,62 @@
+name: Monitor de revenda RJ
+
+on:
+  schedule:
+    # A cada 2h das 7h às 23h (horário de Brasília = UTC-3), minuto 23 para fugir do pico.
+    - cron: "23 10-23/2,0,2 * * *"
+  workflow_dispatch:
+    inputs:
+      sem_ia:
+        description: "Rodar sem a IA (só coleta e conta de margem)"
+        type: boolean
+        default: false
+      sem_web:
+        description: "Pular pesquisas na web (preço novo e passagens)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # commitar data/revenda.db e docs/index.html
+
+concurrency:
+  group: monitor-revenda
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Rodar o robô
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.sem_ia }}" = "true" ]; then ARGS="$ARGS --sem-ia"; fi
+          if [ "${{ inputs.sem_web }}" = "true" ]; then ARGS="$ARGS --sem-web"; fi
+          python -m src.main $ARGS
+
+      - name: Commitar banco e painel
+        if: always()
+        run: |
+          git config user.name  "revenda-rj[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ docs/
+          if git diff --cached --quiet; then echo "Nada mudou."; exit 0; fi
+          git commit -m "chore(dados): atualiza $(date -u +'%Y-%m-%d %H:%M') UTC"
+          for i in 1 2 3 4; do
+            git pull --rebase -X theirs origin "${GITHUB_REF_NAME}" && git push && exit 0
+            echo "Push falhou (tentativa $i), tentando de novo em $((i*5))s…"; sleep $((i*5))
+          done
+          exit 1
+
