@@ -147,7 +147,11 @@ leiloes:
   lance_max: 30000                   # maior lance que você toparia dar (R$)
   regiao: "Rio de Janeiro (RJ) e cidades próximas; aceitar também ES, MG e SP (retirada com transporte)"
   comissao_leiloeiro_pct: 5          # padrão de mercado (paga sobre o lance)
-  custos_fixos_reais: 2500           # pátio, despachante, transferência, laudo cautelar, transporte
+  custos_fixos_reais: 2500           # CARRO: pátio, despachante, transferência, laudo cautelar, transporte
+  custos_fixos_moto_reais: 1200      # MOTO: mesmos itens, mais baratos
+  dias_para_vender: {carro: 30, moto: 20}   # para o retorno ao mês
+  # Cenário pessimista (para saber se aguenta um imprevisto): revenda X% menor e reparo Y% maior.
+  pessimista: {revenda_menor_pct: 10, reparo_maior_pct: 50}
   margem_min_pct: 15
   # Quanto abaixo da FIPE um carro com histórico de leilão revende (o comprador desconta o "passado").
   desagio_revenda_pct:

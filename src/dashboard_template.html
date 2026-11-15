@@ -207,6 +207,7 @@ header .marca small { font-family: var(--mono); color: var(--text-3); font-size:
 .calc-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 12px; }
 .calc-grade label { display: grid; gap: 4px; font-size: 12px; color: var(--text-2); font-weight: 600; }
 .calc-grade .largo { grid-column: 1 / -1; }
+.calc-res .conta { max-width: 620px; }
 .calc-grade input, .calc-grade select { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 14px; }
 </style>
 </head>
@@ -629,9 +630,12 @@ function extrairLote(p) {
   if (/d[ée]bitos?\s*(?:por\s*conta|de\s*responsabilidade)\s*do\s*arrematante/i.test(lx)) alertas.push("Débitos por conta do arrematante (ver edital)");
   if (/alagad|enchente|submers/i.test(lx)) alertas.push("Possível veículo alagado");
   if (/restri[çc][ãa]o\s*judicial|bloqueio\s*judicial/i.test(lx)) alertas.push("Restrição judicial");
+  const moto = /\bmoto(?:cicleta|neta)?s?\b|\b\d{2,4}\s?cc\b|\bhonda\s+(?:cg|biz|pop|bros|xre|cb|nxr|pcx|elite|adv)\b|\byamaha\b|\b(?:fazer|factor|lander|crosser|nmax|xmax|neo|mt-?\d{2})\b|\bsuzuki\b|\bkawasaki\b|\bharley\b|\btriumph\b|\bdafra\b|\bshineray\b/i.test(lx + " " + (p.ot || p.t || "").toLowerCase());
+  if (moto) achados.push("veículo: moto");
+  const debitos = pega("débitos", /(?:d[ée]bitos?|ipva)[^R\n]{0,40}R\$\s*([\d.]+(?:,\d{2})?)/i, m => numBR(m[1]));
   const host = (p.h || "").replace(/^www\./, "");
   const dom = Object.keys(NOME_LEILOEIRO).find(d => host === d || host.endsWith("." + d));
-  return {lote: {marca_modelo: nome, titulo: nome, ano: anos, km, tipo, lance_atual: lance || 0, valor_fipe: fipe, reparo_estimado: 0,
+  return {lote: {veiculo: moto ? "moto" : "carro", debitos: debitos || 0, marca_modelo: nome, titulo: nome, ano: anos, km, tipo, lance_atual: lance || 0, valor_fipe: fipe, reparo_estimado: 0,
     data_leilao: data || "", local: local || "", leiloeiro: dom ? NOME_LEILOEIRO[dom] : host, url: p.u, condicao: "", alertas, fipe_fonte: fipe ? "página do lote" : ""},
     achados, confiavel: !!dom, host};
 }
@@ -697,18 +701,34 @@ function renderAnaliseOlx() {
 // ---------------------------------------------------------------- leilões de carros
 const TIPO_LOTE = {recuperado_financiamento: "Recuperado de financiamento", sinistro_pequena_monta: "Sinistro · pequena monta",
   sinistro_media_monta: "Sinistro · média monta", sinistro_grande_monta: "Sinistro · grande monta (só peças)", sucata: "Sucata (só peças)", outro: "Outro"};
-const SIT_LOTE = {lucro: ["Dá lucro", "var(--good)"], apertado: ["Margem apertada", "var(--warning)"], sem_fipe: ["Sem FIPE para comparar", "var(--text-3)"],
-  acima_orcamento: ["Acima do seu lance máximo", "var(--text-3)"], prejuizo: ["Prejuízo provável", "var(--critical)"], pecas: ["Só para peças", "var(--critical)"]};
+const SIT_LOTE = {lucro: ["Vale a pena", "var(--good)"], arriscado: ["Lucro, mas arriscado", "var(--warning)"], apertado: ["Margem apertada", "var(--warning)"],
+  sem_fipe: ["Sem FIPE para comparar", "var(--text-3)"], acima_orcamento: ["Acima do seu lance máximo", "var(--text-3)"],
+  prejuizo: ["Prejuízo provável", "var(--critical)"], pecas: ["Só para peças", "var(--critical)"]};
+// Análise completa do lote: capital, lucro, margem, retorno ao mês, ponto de equilíbrio e cenário pessimista.
 function contaLoteJs(l, cfg) {
-  const lance = l.lance_atual, comissao = lance * cfg.comissao_leiloeiro_pct / 100, custos = cfg.custos_fixos_reais, reparo = l.reparo_estimado || 0;
-  const total = lance + comissao + custos + reparo;
-  const desagio = (cfg.desagio_revenda_pct || {})[l.tipo] ?? 20;
+  const moto = l.veiculo === "moto";
+  const c = cfg.comissao_leiloeiro_pct / 100;
+  const lance = Number(l.lance_atual) || 0, comissao = lance * c;
+  const custos = moto ? (cfg.custos_fixos_moto_reais ?? 1200) : cfg.custos_fixos_reais;
+  const reparo = Number(l.reparo_estimado) || 0, debitos = Number(l.debitos) || 0;
+  const total = lance + comissao + custos + reparo + debitos;
+  const desagio = (cfg.desagio_revenda_pct || {})[l.tipo] ?? (cfg.desagio_revenda_pct || {}).outro ?? 20;
   const revenda = l.valor_fipe ? l.valor_fipe * (1 - desagio / 100) : null;
   const lucro = revenda != null ? revenda - total : null;
-  const lmax = revenda != null ? Math.round(((revenda / (1 + cfg.margem_min_pct / 100)) - custos - reparo) / (1 + cfg.comissao_leiloeiro_pct / 100) / 100) * 100 : null;
-  return {lance, comissao, custos, reparo, total, fipe: l.valor_fipe, desagio_pct: desagio, revenda, lucro, margem: lucro != null ? lucro / total * 100 : null, lance_maximo_lucrativo: lmax};
+  const margem = lucro != null && total ? lucro / total * 100 : null;
+  const dias = Number(l.dias_venda) || (cfg.dias_para_vender || {})[moto ? "moto" : "carro"] || 30;
+  const roiMes = margem != null ? margem * 30 / Math.max(dias, 1) : null;
+  const fixos = custos + reparo + debitos;
+  const arred = v => v == null ? null : Math.max(0, Math.round(v / 100) * 100);
+  const equilibrio = revenda != null ? arred((revenda - fixos) / (1 + c)) : null;
+  const lmax = revenda != null ? arred((revenda / (1 + cfg.margem_min_pct / 100) - fixos) / (1 + c)) : null;
+  const pess = cfg.pessimista || {revenda_menor_pct: 10, reparo_maior_pct: 50};
+  const lucroPess = revenda != null ? revenda * (1 - pess.revenda_menor_pct / 100) - (lance + comissao + custos + reparo * (1 + pess.reparo_maior_pct / 100) + debitos) : null;
+  return {lance, comissao, custos, reparo, debitos, total, fipe: l.valor_fipe, desagio_pct: desagio, revenda, lucro, margem,
+    dias, roi_mes: roiMes, equilibrio, lance_maximo_lucrativo: lmax, lucro_pessimista: lucroPess, moto};
 }
-const CFG_LEIL = () => ({comissao_leiloeiro_pct: 5, custos_fixos_reais: 2500, margem_min_pct: 15, lance_max: 30000,
+const CFG_LEIL = () => ({comissao_leiloeiro_pct: 5, custos_fixos_reais: 2500, custos_fixos_moto_reais: 1200, margem_min_pct: 15, lance_max: 30000,
+  dias_para_vender: {carro: 30, moto: 20}, pessimista: {revenda_menor_pct: 10, reparo_maior_pct: 50},
   desagio_revenda_pct: {recuperado_financiamento: 12, sinistro_pequena_monta: 25, sinistro_media_monta: 35, outro: 20}, ...(DADOS.leiloes?.config || {})});
 const EXEMPLO_LOTES = [
   {titulo: "CHEVROLET ONIX 1.0 LT 2021", marca_modelo: "Chevrolet Onix 1.0 LT", ano: 2021, km: 48000, tipo: "recuperado_financiamento",
@@ -720,6 +740,9 @@ const EXEMPLO_LOTES = [
   {titulo: "FIAT ARGO DRIVE 1.3 2020 - MÉDIA MONTA", marca_modelo: "Fiat Argo Drive 1.3", ano: 2020, km: 62000, tipo: "sinistro_media_monta",
    condicao: "Batida lateral, não liga, sem chave", lance_atual: 33000, valor_fipe: 70000, fipe_fonte: "tabela FIPE", reparo_estimado: 9000,
    data_leilao: "", local: "São João de Meriti/RJ", leiloeiro: "Freitas Leiloeiro", dominio: "freitasleiloeiro.com.br", alertas: ["Sem chave", "Não liga: risco de motor"]},
+  {titulo: "HONDA CG 160 FAN 2021", marca_modelo: "Honda CG 160 Fan", veiculo: "moto", ano: 2021, km: 22000, tipo: "recuperado_financiamento",
+   condicao: "Funcionando, com chave, pequenos riscos", lance_atual: 8200, valor_fipe: 15500, fipe_fonte: "tabela FIPE", reparo_estimado: 400, debitos: 350,
+   data_leilao: "", local: "Rio de Janeiro/RJ", leiloeiro: "Pestana Leilões", dominio: "pestanaleiloes.com.br", alertas: ["Conferir numeração do motor e chassi"]},
 ];
 EXEMPLO_LOTES.forEach((l, i) => { l.id = "ex-lote-" + i; l.data_leilao = new Date(Date.now() + (3 + i * 2) * 864e5).toISOString().slice(0, 10); });
 
@@ -727,37 +750,54 @@ function situacaoLote(l, c, cfg) {
   if (["sinistro_grande_monta", "sucata"].includes(l.tipo)) return "pecas";
   if (c.margem == null) return "sem_fipe";
   if (c.lance > cfg.lance_max) return "acima_orcamento";
-  if (c.margem >= cfg.margem_min_pct) return "lucro";
+  if (c.margem >= cfg.margem_min_pct) return c.lucro_pessimista > 0 ? "lucro" : "arriscado";
   return c.margem > 0 ? "apertado" : "prejuizo";
+}
+function painelAnalise(c, cfg, sit) {
+  const sinal = v => v == null ? "—" : (v >= 0 ? "+" : "") + brl(v);
+  const linha = (r, v, cls = "") => `<span class="neg">${r}</span><span class="${cls}">${v}</span>`;
+  return `<div class="conta">
+    ${linha("lance", brl(c.lance))}${linha(`comissão ${cfg.comissao_leiloeiro_pct}%`, brl(c.comissao))}
+    ${linha(`pátio, despachante, laudo, transporte (${c.moto ? "moto" : "carro"})`, brl(c.custos))}
+    ${linha("reparo estimado", brl(c.reparo))}${c.debitos ? linha("débitos (IPVA, multas)", brl(c.debitos)) : ""}
+    ${linha("<b>capital necessário</b>", brl(c.total), "tot")}
+    ${linha("FIPE", brl(c.fipe))}${linha(`revenda (FIPE −${c.desagio_pct}%)`, brl(c.revenda))}
+    ${linha("<b>lucro estimado</b>", sinal(c.lucro) + (c.margem != null ? ` (${pct(c.margem)})` : ""), "tot")}
+    ${linha(`retorno ao mês (vende em ~${c.dias} dias)`, c.roi_mes != null ? pct(c.roi_mes) : "—")}
+    ${linha(`cenário pessimista (revenda −${(cfg.pessimista || {}).revenda_menor_pct ?? 10}%, reparo +${(cfg.pessimista || {}).reparo_maior_pct ?? 50}%)`, sinal(c.lucro_pessimista), c.lucro_pessimista < 0 ? "lucro neg" : "")}
+    ${linha("lance de empate (lucro zero)", brl(c.equilibrio))}
+    ${linha(`<b>lance máximo para ${cfg.margem_min_pct}%</b>`, brl(c.lance_maximo_lucrativo), "tot")}
+  </div>`;
+}
+function vereditoLote(c, cfg, sit, l) {
+  return sit === "lucro" ? `✅ <b>Vale a pena:</b> lucro de ${brl(c.lucro)} (${pct(c.margem)}), ~${pct(c.roi_mes)} ao mês, e ainda lucra ${brl(c.lucro_pessimista)} no cenário pessimista. Não passe de <b>${brl(c.lance_maximo_lucrativo)}</b> de lance.`
+    : sit === "arriscado" ? `⚠️ <b>Lucro, mas arriscado:</b> ${brl(c.lucro)} (${pct(c.margem)}) no cenário normal, mas <b>prejuízo de ${brl(-c.lucro_pessimista)}</b> se der algo errado. Só vale com lance bem abaixo de ${brl(c.lance_maximo_lucrativo)} ou depois de ver o carro.`
+    : sit === "apertado" ? `⚠️ <b>Margem apertada</b> (${pct(c.margem)}). Só vale com lance até <b>${brl(c.lance_maximo_lucrativo)}</b>.`
+    : sit === "pecas" ? `⛔ <b>Não vale para revenda:</b> ${TIPO_LOTE[l.tipo]}.`
+    : sit === "acima_orcamento" ? `⛔ <b>Acima do seu lance máximo</b> (${brl(cfg.lance_max)}).`
+    : sit === "sem_fipe" ? `ℹ️ Informe a <b>FIPE</b> para ver se vale a pena.`
+    : `⛔ <b>Não vale a pena:</b> prejuízo estimado de ${brl(-c.lucro)}. Empata com lance de ${brl(c.equilibrio)}.`;
 }
 
 function cardLote(l, exemplo = false) {
   const cfg = CFG_LEIL();
-  const c = exemplo ? contaLoteJs(l, cfg) : l.conta;
-  const sit = exemplo ? situacaoLote(l, c, cfg) : l.situacao;
+  // Sempre recalcula no navegador: a conta é a mesma para exemplos, lotes da pesquisa e os seus.
+  const c = contaLoteJs(l, cfg);
+  const sit = situacaoLote(l, c, cfg);
   const [rotSit, corSit] = SIT_LOTE[sit] || ["", "var(--text-3)"];
   const link = exemplo ? `href="#" data-exemplo-link` : l.url ? `href="${urlSegura(l.url)}" target="_blank" rel="noopener"` : "";
   const dias = l.data_leilao ? Math.ceil((new Date(l.data_leilao + "T12:00:00") - Date.now()) / 864e5) : null;
   const quando = l.data_leilao ? `${diaMes(l.data_leilao.slice(0, 10))}${dias != null && dias >= 0 ? ` · ${dias === 0 ? "hoje" : dias === 1 ? "amanhã" : "em " + dias + " dias"}` : ""}` : "data a confirmar";
   return `<article class="card ${exemplo ? "exemplo" : ""}">
-    <div class="foto" style="aspect-ratio: 2 / 1; padding-top: 28px"><span class="sem">🚗</span>
+    <div class="foto" style="aspect-ratio: 2 / 1; padding-top: 28px"><span class="sem">${l.veiculo === "moto" ? "🏍️" : "🚗"}</span>
       <div class="selo">${exemplo ? SELO_EXEMPLO : ""}<span class="pill"><span class="dot" style="background:${corSit}"></span>${rotSit}</span></div>
       ${c.lucro > 0 ? `<span class="etiqueta">+${brl(c.lucro)}</span>` : ""}</div>
     <div class="corpo">
       <h3><a ${link}>${esc(l.marca_modelo || l.titulo)}</a></h3>
       <div class="muted">${l.ano || "ano ?"} · ${l.km != null ? Number(l.km).toLocaleString("pt-BR") + " km" : "km ?"} · <span class="tipo-lote">${esc(TIPO_LOTE[l.tipo] || l.tipo)}</span></div>
       <div class="precos"><span class="preco">${brl(c.lance)}</span><span class="muted">lance atual</span>${c.margem != null ? `<span class="lucro ${c.margem < 0 ? "neg" : ""}">${pct(c.margem)}</span>` : ""}</div>
-      <div class="conta">
-        <span class="neg">lance</span><span>${brl(c.lance)}</span>
-        <span class="neg">comissão ${cfg.comissao_leiloeiro_pct}%</span><span>${brl(c.comissao)}</span>
-        <span class="neg">pátio, despachante, laudo</span><span>${brl(c.custos)}</span>
-        <span class="neg">reparo estimado</span><span>${brl(c.reparo)}</span>
-        <span class="tot">custo total</span><span class="tot">${brl(c.total)}</span>
-        <span class="neg">FIPE ${c.fipe ? "" : "(não achada)"}</span><span>${brl(c.fipe)}</span>
-        <span class="neg">revenda (FIPE −${c.desagio_pct}%)</span><span>${brl(c.revenda)}</span>
-        <span class="tot">lucro estimado</span><span class="tot">${c.lucro != null ? (c.lucro >= 0 ? "+" : "") + brl(c.lucro) : "—"}</span>
-      </div>
-      ${c.lance_maximo_lucrativo ? `<div class="mini">🎯 Para lucrar ${cfg.margem_min_pct}%, não passe de <b>${brl(c.lance_maximo_lucrativo)}</b> de lance.</div>` : ""}
+      ${painelAnalise(c, cfg, sit)}
+      <div class="mini">${vereditoLote(c, cfg, sit, l)}</div>
       ${l.condicao ? `<div class="mini">🔧 ${esc(l.condicao)}</div>` : ""}
       ${(l.alertas || []).length ? `<details><summary>⚠️ Atenção (${l.alertas.length})</summary><ul>${l.alertas.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
       <div class="mini">${["📅 " + quando, "📍 " + esc(l.local || "?"), esc(l.leiloeiro || l.dominio || ""), l.fipe_fonte ? "FIPE: " + esc(l.fipe_fonte) : ""].filter(x => x && x !== "📍 ").join(" · ")}</div>
@@ -767,14 +807,18 @@ function cardLote(l, exemplo = false) {
 
 function guiaLeilao() {
   const cfg = CFG_LEIL();
-  return `<details class="guia" ${estado.guiaAberto ? "open" : ""} data-guia><summary><h2 style="display:inline">📘 Como ganhar dinheiro com carro de leilão</h2></summary>
+  return `<details class="guia" ${estado.guiaAberto ? "open" : ""} data-guia><summary><h2 style="display:inline">📘 Como ganhar dinheiro com carro e moto de leilão</h2></summary>
     <h3>O que costuma dar lucro</h3>
     <ul><li><b>Recuperado de financiamento</b> é o melhor tipo: carro tomado por falta de pagamento, normalmente sem batida. Revende uns ${cfg.desagio_revenda_pct.recuperado_financiamento}% abaixo da FIPE.</li>
     <li><b>Sinistro de pequena monta</b>: batida leve, volta a circular depois de vistoria. Revende uns ${cfg.desagio_revenda_pct.sinistro_pequena_monta}% abaixo da FIPE, porque o histórico de leilão aparece na consulta do chassi.</li>
     <li><b>Média monta</b> exige reparo com laudo e inspeção de segurança (CSV) para voltar a rodar; dá lucro só com lance bem baixo. <b>Grande monta e sucata</b> não voltam a circular: só peças.</li>
     <li><b>Modelos populares</b> (Onix, HB20, Argo, Gol, Polo, Strada, Corolla, Compass…) vendem rápido mesmo com histórico de leilão. Carro raro ou de luxo encalha.</li></ul>
+    <h3>Motos</h3>
+    <ul><li>Giram mais rápido e pedem menos capital: <b>CG 160, Biz, Pop 110, Fazer 250, Factor 150, NMax, PCX, XRE 300, Bros</b> vendem em dias.</li>
+    <li>Custos fixos menores (~${brl(cfg.custos_fixos_moto_reais ?? 1200)}), mas a margem em reais também é menor: o lucro está no volume.</li>
+    <li>Atenção redobrada a <b>chassi e motor remarcados</b>, moto de financiamento sem chave e documentação (CRLV, débitos de IPVA e licenciamento).</li></ul>
     <h3>A conta que o painel faz</h3>
-    <p>Custo total = lance + comissão do leiloeiro (${cfg.comissao_leiloeiro_pct}%) + pátio, despachante, transferência e laudo (~${brl(cfg.custos_fixos_reais)}) + reparo estimado. Revenda = FIPE menos o deságio do tipo de lote. Só aparece como "dá lucro" com margem de ${cfg.margem_min_pct}% ou mais. Ajuste esses números em <code>config/regras.yaml</code> → <code>leiloes</code>.</p>
+    <p><b>Capital necessário</b> = lance + comissão do leiloeiro (${cfg.comissao_leiloeiro_pct}%) + pátio, despachante, transferência, laudo e transporte (~${brl(cfg.custos_fixos_reais)} carro, ~${brl(cfg.custos_fixos_moto_reais ?? 1200)} moto) + reparo + débitos. <b>Revenda</b> = FIPE menos o deságio do tipo de lote. Depois o painel calcula <b>lucro e margem</b>, <b>retorno ao mês</b> (pelo tempo para vender), o <b>lance de empate</b>, o <b>lance máximo</b> para ${cfg.margem_min_pct}% e um <b>cenário pessimista</b> (revenda ${(cfg.pessimista || {}).revenda_menor_pct ?? 10}% menor e reparo ${(cfg.pessimista || {}).reparo_maior_pct ?? 50}% maior). Só é "vale a pena" quando a margem passa de ${cfg.margem_min_pct}% <b>e</b> ainda dá lucro no pessimista. Ajuste tudo em <code>config/regras.yaml</code> → <code>leiloes</code>.</p>
     <h3>Antes de dar lance</h3>
     <ul><li>Leia o <b>edital</b> do lote: débitos (IPVA, multas) podem ser seus; prazo de retirada; taxa de pátio por dia.</li>
     <li><b>Visite o pátio</b> na visitação. Se não der, considere o pior caso no reparo.</li>
@@ -790,7 +834,7 @@ function renderLeiloes() {
     const cfg = CFG_LEIL();
     const meus = lotesManuais();
     setTimeout(() => { atualizarCalc(); { const L = loteLido(); if (L) preencherCalc(L.lote); } }, 0);
-    return `<p class="muted">Os sites de leilão só mostram os lotes no seu navegador. Abra um leiloeiro abaixo, filtre por <b>veículos</b> e <b>RJ</b>, e jogue o carro que gostou na calculadora: ela faz a conta completa e diz até quanto vale dar de lance. Lance máximo configurado: <b>${brl(cfg.lance_max)}</b>.</p>`
+    return `<p class="muted">Carros e motos de leilão. Os sites de leilão só mostram os lotes no seu navegador: cole o link do lote ou abra um leiloeiro abaixo, filtre por <b>veículos</b> e <b>RJ</b>, e jogue o veículo que gostou na calculadora: ela faz a conta completa e diz até quanto vale dar de lance. Lance máximo configurado: <b>${brl(cfg.lance_max)}</b>.</p>`
       + blocoColarLink() + blocoLoteLido() + blocoCalculadora() + blocoSitesLeilao()
       + (meus.length ? `<h2>⭐ Meus lotes (${meus.length})</h2><div class="grade">${meus.map(l => cardLote(l)).join("")}</div>` : "")
       + guiaLeilao();
@@ -844,11 +888,7 @@ function blocoLoteLido() {
   const cfg = CFG_LEIL(), c = contaLoteJs(L.lote, cfg), sit = situacaoLote(L.lote, c, cfg);
   const falta = [!L.lote.lance_atual && "lance", !L.lote.valor_fipe && "FIPE", !L.lote.ano && "ano"].filter(Boolean);
   const veredito = falta.length ? `<b>Faltou ler: ${falta.join(", ")}.</b> Complete na calculadora abaixo (a FIPE você acha no botão "Consultar FIPE").`
-    : sit === "lucro" ? `✅ <b>Viável:</b> lucro estimado de ${brl(c.lucro)} (${pct(c.margem)}). Não passe de <b>${brl(c.lance_maximo_lucrativo)}</b> de lance.`
-    : sit === "apertado" ? `⚠️ <b>Margem apertada</b> (${pct(c.margem)}). Só vale com lance até <b>${brl(c.lance_maximo_lucrativo)}</b>.`
-    : sit === "pecas" ? `⛔ <b>Não viável para revenda:</b> ${TIPO_LOTE[L.lote.tipo]}.`
-    : sit === "acima_orcamento" ? `⛔ <b>Acima do seu lance máximo</b> (${brl(cfg.lance_max)}).`
-    : `⛔ <b>Não viável:</b> prejuízo estimado de ${brl(c.lucro)}.`;
+    : vereditoLote(c, cfg, sit, L.lote);
   return `<div class="aviso exemplo-aviso" style="border-left-color:${sit === "lucro" && !falta.length ? "var(--good)" : "var(--warning)"}">
     <b>Lote lido de ${esc(L.host)}</b>${L.confiavel ? "" : " ⚠️ (site fora da lista de leiloeiros conhecidos: confira a matrícula na Junta Comercial)"}: ${esc(L.lote.marca_modelo || "?")}<br>${veredito}
     ${L.lote.alertas.length ? `<div style="margin-top:6px">⚠️ <b>Atenção:</b> ${L.lote.alertas.map(esc).join(" · ")}</div>` : ""}
@@ -860,6 +900,7 @@ function preencherCalc(l) {
   const form = document.getElementById("calc-lote"); if (!form || !l) return;
   for (const [k, v] of Object.entries(l)) { const el = form.elements[k]; if (el && v != null && v !== "" && v !== 0) el.value = v; }
   if (l.tipo) form.elements.tipo.value = l.tipo;
+  if (l.veiculo) form.elements.veiculo.value = l.veiculo;
   atualizarCalc();
 }
 document.addEventListener("submit", e => {
@@ -873,13 +914,16 @@ function blocoCalculadora() {
   return `<h2>🧮 Calculadora de lote</h2>
     <form class="card calc" id="calc-lote" style="padding:16px">
       <div class="calc-grade">
-        <label>Carro<input name="marca_modelo" placeholder="Ex.: Chevrolet Onix 1.0 LT" required></label>
+        <label>Veículo<select name="veiculo"><option value="carro">🚗 Carro</option><option value="moto">🏍️ Moto</option></select></label>
+        <label>Modelo<input name="marca_modelo" placeholder="Ex.: Chevrolet Onix 1.0 LT / Honda CG 160" required></label>
         <label>Ano<input name="ano" type="number" min="1990" max="2030" placeholder="2018"></label>
         <label>Km<input name="km" type="number" min="0" placeholder="80000"></label>
         <label>Tipo do lote<select name="tipo">${tipos}</select></label>
         <label>Lance (R$)<input name="lance_atual" type="number" min="0" step="100" required placeholder="25000"></label>
         <label>FIPE (R$)<input name="valor_fipe" type="number" min="0" step="100" required placeholder="48000"></label>
         <label>Reparo estimado (R$)<input name="reparo_estimado" type="number" min="0" step="100" value="0"></label>
+        <label>Débitos: IPVA, multas (R$)<input name="debitos" type="number" min="0" step="50" value="0"></label>
+        <label>Dias para revender<input name="dias_venda" type="number" min="1" max="365" placeholder="30"></label>
         <label>Data do leilão<input name="data_leilao" type="date"></label>
         <label>Local<input name="local" placeholder="Duque de Caxias/RJ"></label>
         <label>Leiloeiro<input name="leiloeiro" placeholder="Copart"></label>
@@ -892,8 +936,9 @@ function blocoCalculadora() {
 function lerCalc(form) {
   const f = Object.fromEntries(new FormData(form));
   const num = v => v === "" || v == null ? null : Number(v);
-  return {marca_modelo: f.marca_modelo.trim(), titulo: f.marca_modelo.trim(), ano: num(f.ano), km: num(f.km), tipo: f.tipo,
+  return {veiculo: f.veiculo, marca_modelo: f.marca_modelo.trim(), titulo: f.marca_modelo.trim(), ano: num(f.ano), km: num(f.km), tipo: f.tipo,
     lance_atual: num(f.lance_atual) || 0, valor_fipe: num(f.valor_fipe), reparo_estimado: num(f.reparo_estimado) || 0,
+    debitos: num(f.debitos) || 0, dias_venda: num(f.dias_venda),
     data_leilao: f.data_leilao || "", local: f.local.trim(), leiloeiro: f.leiloeiro.trim(), url: f.url.trim(), condicao: "", alertas: [], fipe_fonte: "você"};
 }
 function atualizarCalc() {
@@ -902,12 +947,8 @@ function atualizarCalc() {
   const out = document.getElementById("calc-res");
   if (!l.lance_atual || !l.valor_fipe) { out.innerHTML = `<p class="muted">Preencha o lance e a FIPE para ver a conta.</p>`; return; }
   const c = contaLoteJs(l, cfg), sit = situacaoLote(l, c, cfg), [rot, cor] = SIT_LOTE[sit];
-  out.innerHTML = `<div class="conta" style="margin-top:12px">
-    <span class="neg">custo total (lance + ${cfg.comissao_leiloeiro_pct}% + ${brl(cfg.custos_fixos_reais)} + reparo)</span><span class="tot">${brl(c.total)}</span>
-    <span class="neg">revenda (FIPE −${c.desagio_pct}%)</span><span>${brl(c.revenda)}</span>
-    <span class="tot">lucro estimado</span><span class="tot">${c.lucro != null ? (c.lucro >= 0 ? "+" : "") + brl(c.lucro) + " (" + pct(c.margem) + ")" : "—"}</span></div>
-    <p style="margin:10px 0 0"><span class="pill"><span class="dot" style="background:${cor}"></span>${rot}</span>
-    ${c.lance_maximo_lucrativo ? ` 🎯 Para lucrar ${cfg.margem_min_pct}%, não passe de <b>${brl(c.lance_maximo_lucrativo)}</b> de lance.` : ""}</p>`;
+  out.innerHTML = `<h3 style="margin:14px 0 8px">📊 Análise completa <span class="pill"><span class="dot" style="background:${cor}"></span>${rot}</span></h3>
+    ${painelAnalise(c, cfg, sit)}<p style="margin:10px 0 0">${vereditoLote(c, cfg, sit, l)}</p>`;
 }
 document.addEventListener("input", e => { if (e.target.closest?.("#calc-lote")) atualizarCalc(); });
 document.addEventListener("change", e => { if (e.target.closest?.("#calc-lote")) atualizarCalc(); });
