@@ -149,7 +149,7 @@ def montar_dados(db: Database, regras: dict, catalogo: Catalogo, passagens: dict
             "ultima": ({"pesquisado_em": _iso(ultima_leil.pesquisado_em), "erro": ultima_leil.erro,
                         "resumo": ultima_leil.dados.get("resumo")} if ultima_leil else None),
             "config": {k: cfg_leil.get(k) for k in ("lance_max", "comissao_leiloeiro_pct", "custos_fixos_reais",
-                                                    "margem_min_pct", "desagio_revenda_pct", "sites", "regiao")},
+                                                    "margem_min_pct", "desagio_revenda_pct", "sites", "regiao", "ativa")},
         }
 
         execucoes = [

@@ -736,6 +736,15 @@ function guiaLeilao() {
 
 function renderLeiloes() {
   const L = DADOS.leiloes || {lotes: [], config: {}};
+  if (L.config && L.config.ativa === false && !L.lotes.length) {
+    const cfg = CFG_LEIL();
+    const meus = lotesManuais();
+    setTimeout(atualizarCalc, 0);
+    return `<p class="muted">Os sites de leilão só mostram os lotes no seu navegador. Abra um leiloeiro abaixo, filtre por <b>veículos</b> e <b>RJ</b>, e jogue o carro que gostou na calculadora: ela faz a conta completa e diz até quanto vale dar de lance. Lance máximo configurado: <b>${brl(cfg.lance_max)}</b>.</p>`
+      + blocoSitesLeilao() + blocoCalculadora()
+      + (meus.length ? `<h2>⭐ Meus lotes (${meus.length})</h2><div class="grade">${meus.map(l => cardLote(l)).join("")}</div>` : "")
+      + guiaLeilao();
+  }
   const reais = L.lotes.length > 0;
   const ex = mostrarExemplo("leiloes", reais);
   const cfg = CFG_LEIL();
@@ -846,7 +855,7 @@ function renderHoje() {
       ${linha("oportunidades", "🔔 Oportunidades", "anúncios abaixo do mercado", opp.length)}
       ${linha("olx", "🔎 Análise OLX", IMPORTADOS.length ? `${IMPORTADOS.length} anúncios trazidos` : "use o favorito numa busca", olx.length)}
       ${linha("promocoes", "🛒 Promoções em lojas", "produto novo que dá lucro", promo.length)}
-      ${linha("leiloes", "🚗 Leilões de carros", `${(DADOS.leiloes?.lotes || []).length} lotes analisados`, lotes.length)}
+      ${linha("leiloes", "🚗 Leilões de carros", DADOS.leiloes?.config?.ativa === false ? `calculadora · ${(estado.lotesManuais || []).length} lote(s) salvos` : `${(DADOS.leiloes?.lotes || []).length} lotes analisados`, DADOS.leiloes?.config?.ativa === false ? lotesManuais().filter(l => l.situacao === "lucro").length : lotes.length)}
       ${linha("passagens", "✈️ Passagens", rotaBoa ? `${esc(rotaBoa.r.nome)} abaixo do alvo` : "nenhuma rota abaixo do alvo", rotas.length ? brl(Math.min(...rotas.map(x => x.p))) : "—")}
       ${linha("execucoes", "⚙️ Gasto com IA no mês", `teto definido em regras.yaml`, "US$ " + gasto.toFixed(2))}
     </div></div>`;

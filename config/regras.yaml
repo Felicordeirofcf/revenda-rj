@@ -133,7 +133,10 @@ promocoes:
 # Leilões de carros: o Claude procura lotes nos sites de leiloeiros conhecidos e o robô faz a conta
 # completa (lance + comissão + custos + reparo) contra o valor de revenda (FIPE com deságio de leilão).
 leiloes:
-  ativa: true
+  # Pesquisa automática DESLIGADA: os sites de leilão só mostram os lotes num navegador de verdade,
+  # e duas tentativas (Haiku e Sonnet lendo páginas) voltaram vazias. Use a calculadora da aba Leilões.
+  # As regras abaixo (comissão, custos, deságio, margem, lance máximo) continuam valendo para ela.
+  ativa: false
   refazer_a_cada_horas: 20           # 1 vez por dia
   # Pesquisa FORTE (os sites de leilão são difíceis de ler): Sonnet 5.5, que também abre as páginas dos
   # lotes. Custo estimado: US$ 0,15 a 0,30 por dia. Para economizar, troque por "claude-haiku-5-5".
