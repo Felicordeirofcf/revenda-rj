@@ -100,13 +100,15 @@ def tipo_busca(modelo: str) -> str:
 
 class PesquisadorWeb:
     def __init__(self, client: anthropic.Anthropic, modelo: str, effort: str = "low", max_buscas: int = 4,
-                 modelo_reserva: str | None = None):
+                 modelo_reserva: str | None = None, max_leituras: int = 0):
         self.client = client
         self.modelo = modelo
         self.effort = effort
         self.max_buscas = max_buscas
         # Se o modelo principal (barato) recusar a busca com erro 400, passa para este e não volta mais.
         self.modelo_reserva = modelo_reserva
+        # Quantas páginas o modelo pode abrir (web_fetch) para ler detalhes. 0 = só busca.
+        self.max_leituras = max_leituras
 
     def _pesquisar(self, pedido: str, schema: dict[str, Any], descricao_tool: str,
                    dominios: list[str] | None = None) -> tuple[dict[str, Any], UsoTokens]:
@@ -131,7 +133,14 @@ class PesquisadorWeb:
         }
         if dominios:
             busca["allowed_domains"] = dominios
-        tools = [busca, {"name": NOME_TOOL, "description": descricao_tool, "strict": True, "input_schema": schema}]
+        tools: list[dict[str, Any]] = [busca]
+        if self.max_leituras > 0 and modelo.startswith(PREFIXOS_BUSCA_DINAMICA):
+            leitura: dict[str, Any] = {"type": "web_fetch_20260209", "name": "web_fetch",
+                                       "max_uses": self.max_leituras, "max_content_tokens": 8000}
+            if dominios:
+                leitura["allowed_domains"] = dominios
+            tools.append(leitura)
+        tools.append({"name": NOME_TOOL, "description": descricao_tool, "strict": True, "input_schema": schema})
         mensagens: list[dict[str, Any]] = [{"role": "user", "content": pedido}]
         uso = UsoTokens()
         for _ in range(MAX_CONTINUACOES + 1):
@@ -198,13 +207,16 @@ class PesquisadorWeb:
         sites = list(cfg.get("sites") or [])
         pedido = (
             f"Hoje é {hoje}. Procure LOTES DE CARROS (automóveis de passeio e utilitários leves) em leilões que "
-            f"acontecem nos próximos 15 dias ou estão com lances abertos, nos sites de leiloeiros: {', '.join(sites)}. "
+            f"acontecem nos próximos 30 dias ou estão com lances abertos, nos sites de leiloeiros: {', '.join(sites)}. "
+            "Busque páginas de lotes e de agenda de leilões de veículos; quando a busca trouxer a página de um lote ou "
+            "de um leilão de veículos, ABRA a página (web_fetch) para ler lance, ano, km, tipo e local. "
             f"Região: {cfg.get('regiao', 'Rio de Janeiro')}. Lance até R$ {float(cfg.get('lance_max', 50000)):.0f}. "
             "Prefira lotes com mais chance de lucro na revenda: recuperados de financiamento, sinistro de pequena "
             "monta, modelos populares de alta liquidez (Onix, HB20, Argo, Gol, Polo, Kwid, Mobi, Strada, Toro, "
-            "Compass, Corolla, Civic, T-Cross, Creta, Renegade, Saveiro). Para cada lote informe o valor FIPE "
-            "(do site do leiloeiro ou da tabela FIPE) e uma estimativa conservadora de reparo. Não inclua motos, "
-            "caminhões, máquinas nem imóveis."
+            "Compass, Corolla, Civic, T-Cross, Creta, Renegade, Saveiro, Ka, Sandero, Prisma). Para cada lote informe o "
+            "valor FIPE (do site do leiloeiro ou da tabela FIPE) e uma estimativa conservadora de reparo. INCLUA o lote "
+            "mesmo se faltar algum dado (use null no ano/km/FIPE e vazio na data): o painel marca o que falta. "
+            "Não inclua motos, caminhões, máquinas nem imóveis, nem lotes de leilões já encerrados."
         )
         dominios = sites + list(cfg.get("sites_consulta") or [])
         return self._pesquisar(pedido, SCHEMA_LEILOES, "Registra os lotes de carros encontrados.", dominios)

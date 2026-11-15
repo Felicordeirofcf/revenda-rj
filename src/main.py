@@ -233,8 +233,9 @@ class Robo:
 
         leil = self.regras.get("leiloes") or {}
         if leil.get("ativa") and vencido("leiloes", "geral", timedelta(hours=float(leil.get("refazer_a_cada_horas", 20)))):
-            pesq_leil = PesquisadorWeb(self.client, pesq.modelo, cfg.get("effort", "low"),
-                                       int(leil.get("max_buscas_por_pesquisa", 4)), modelo_reserva=reserva)
+            pesq_leil = PesquisadorWeb(self.client, leil.get("modelo") or pesq.modelo, leil.get("effort", cfg.get("effort", "low")),
+                                       int(leil.get("max_buscas_por_pesquisa", 4)), modelo_reserva=reserva,
+                                       max_leituras=int(leil.get("max_paginas_lidas", 0)))
             hoje_l = quando.astimezone(timezone(timedelta(hours=-3))).date().isoformat()
             registrar("leiloes", "geral", lambda: pesq_leil.leiloes(leil, hoje_l))
 

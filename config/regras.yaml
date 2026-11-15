@@ -135,9 +135,14 @@ promocoes:
 leiloes:
   ativa: true
   refazer_a_cada_horas: 20           # 1 vez por dia
-  max_buscas_por_pesquisa: 4
+  # Pesquisa FORTE (os sites de leilão são difíceis de ler): Sonnet 5.5, que também abre as páginas dos
+  # lotes. Custo estimado: US$ 0,15 a 0,30 por dia. Para economizar, troque por "claude-haiku-5-5".
+  modelo: "claude-sonnet-5-5"
+  effort: "medium"
+  max_buscas_por_pesquisa: 6
+  max_paginas_lidas: 6
   lance_max: 30000                   # maior lance que você toparia dar (R$)
-  regiao: "Rio de Janeiro (RJ); aceitar também SP e MG se o lote for muito bom"
+  regiao: "Rio de Janeiro (RJ) e cidades próximas; aceitar também ES, MG e SP (retirada com transporte)"
   comissao_leiloeiro_pct: 5          # padrão de mercado (paga sobre o lance)
   custos_fixos_reais: 2500           # pátio, despachante, transferência, laudo cautelar, transporte
   margem_min_pct: 15
@@ -157,7 +162,6 @@ leiloes:
     - superbid.net
     - pestanaleiloes.com.br
     - palaciodosleiloes.com.br
-    - leilaovip.com.br
     - mgl.com.br
   # Só para consultar o valor FIPE (o link do lote precisa ser de um leiloeiro da lista acima).
   sites_consulta: ["veiculos.fipe.org.br", "fipe.org.br"]

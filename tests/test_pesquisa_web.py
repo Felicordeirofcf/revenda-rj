@@ -56,3 +56,18 @@ def test_haiku_usa_busca_basica_e_cai_para_sonnet_se_recusado():
     assert chamadas[1]["model"] == "claude-sonnet-5-5" and chamadas[1]["tools"][0]["type"] == "web_search_20260209"
     pesq.preco_novo("PS5", ["ps5"])
     assert chamadas[2]["model"] == "claude-sonnet-5-5"  # não volta a tentar o Haiku
+
+
+def test_leiloes_com_sonnet_abre_paginas_dos_sites_da_lista():
+    client = ClienteFalso({NOME_TOOL: [resposta_tool(NOME_TOOL, {"lotes": [], "resumo": "nada"})]})
+    pesq = PesquisadorWeb(client, "claude-sonnet-5-5", max_buscas=6, max_leituras=6)
+    pesq.leiloes({"sites": ["copart.com.br"], "sites_consulta": ["veiculos.fipe.org.br"], "lance_max": 30000}, "2026-11-15")
+    tools = client.chamadas[0]["tools"]
+    leitura = next(t for t in tools if t.get("name") == "web_fetch")
+    assert leitura["type"] == "web_fetch_20260209" and leitura["max_uses"] == 6
+    assert leitura["allowed_domains"] == ["copart.com.br", "veiculos.fipe.org.br"]
+    assert "30000" in client.chamadas[0]["messages"][0]["content"]
+    # No Haiku (busca básica) não há leitura de páginas.
+    client2 = ClienteFalso({NOME_TOOL: [resposta_tool(NOME_TOOL, {"lotes": [], "resumo": "nada"})]})
+    PesquisadorWeb(client2, "claude-haiku-5-5", max_leituras=6).leiloes({"sites": ["copart.com.br"]}, "2026-11-15")
+    assert not any(t.get("name") == "web_fetch" for t in client2.chamadas[0]["tools"])

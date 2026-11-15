@@ -203,6 +203,11 @@ header .marca small { font-family: var(--mono); color: var(--text-3); font-size:
 @media (max-width: 640px) { .tiles { display: none; } header .marca small { display: none; } h1 { font-size: 22px; }
   .mini-item { grid-template-columns: 44px 1fr; } .mini-item img, .mini-item .ico { width: 44px; height: 44px; }
   .mini-item .etiqueta { grid-column: 2; justify-self: start; } .hoje .frase { padding: 20px; } }
+
+.calc-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 12px; }
+.calc-grade label { display: grid; gap: 4px; font-size: 12px; color: var(--text-2); font-weight: 600; }
+.calc-grade .largo { grid-column: 1 / -1; }
+.calc-grade input, .calc-grade select { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -681,7 +686,7 @@ function cardLote(l, exemplo = false) {
   const c = exemplo ? contaLoteJs(l, cfg) : l.conta;
   const sit = exemplo ? situacaoLote(l, c, cfg) : l.situacao;
   const [rotSit, corSit] = SIT_LOTE[sit] || ["", "var(--text-3)"];
-  const link = exemplo ? `href="#" data-exemplo-link` : `href="${urlSegura(l.url)}" target="_blank" rel="noopener"`;
+  const link = exemplo ? `href="#" data-exemplo-link` : l.url ? `href="${urlSegura(l.url)}" target="_blank" rel="noopener"` : "";
   const dias = l.data_leilao ? Math.ceil((new Date(l.data_leilao + "T12:00:00") - Date.now()) / 864e5) : null;
   const quando = l.data_leilao ? `${diaMes(l.data_leilao.slice(0, 10))}${dias != null && dias >= 0 ? ` · ${dias === 0 ? "hoje" : dias === 1 ? "amanhã" : "em " + dias + " dias"}` : ""}` : "data a confirmar";
   return `<article class="card ${exemplo ? "exemplo" : ""}">
@@ -705,8 +710,8 @@ function cardLote(l, exemplo = false) {
       ${c.lance_maximo_lucrativo ? `<div class="mini">🎯 Para lucrar ${cfg.margem_min_pct}%, não passe de <b>${brl(c.lance_maximo_lucrativo)}</b> de lance.</div>` : ""}
       ${l.condicao ? `<div class="mini">🔧 ${esc(l.condicao)}</div>` : ""}
       ${(l.alertas || []).length ? `<details><summary>⚠️ Atenção (${l.alertas.length})</summary><ul>${l.alertas.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
-      <div class="mini">📅 ${quando} · 📍 ${esc(l.local || "?")} · ${esc(l.leiloeiro || l.dominio)}${l.fipe_fonte ? " · FIPE: " + esc(l.fipe_fonte) : ""}</div>
-      <div class="acoes"><a class="btn primario" ${link}>Ver lote no leiloeiro ↗</a></div>
+      <div class="mini">${["📅 " + quando, "📍 " + esc(l.local || "?"), esc(l.leiloeiro || l.dominio || ""), l.fipe_fonte ? "FIPE: " + esc(l.fipe_fonte) : ""].filter(x => x && x !== "📍 ").join(" · ")}</div>
+      <div class="acoes">${link ? `<a class="btn primario" ${link}>Ver lote no leiloeiro ↗</a>` : ""}${l.manual ? `<button class="btn" data-remover-lote="${esc(l.id)}">🗑️ Remover</button>` : ""}</div>
     </div></article>`;
 }
 
@@ -740,8 +745,81 @@ function renderLeiloes() {
   html += reais ? `<div class="grade">${L.lotes.map(l => cardLote(l)).join("")}</div>`
     : `<div class="vazio">${L.ultima ? `Nenhum lote encontrado na última pesquisa (${ha(L.ultima.pesquisado_em)})${L.ultima.erro ? ": " + esc(L.ultima.erro) : ""}.` : "A primeira pesquisa de leilões acontece na próxima execução do robô."}</div>`;
   if (L.ultima?.resumo) html += `<div class="resumo-ia" style="margin-top:12px">🤖 ${esc(L.ultima.resumo)}</div>`;
+  const meus = lotesManuais();
+  if (meus.length) html += `<h2>⭐ Meus lotes (${meus.length})</h2><div class="grade">${meus.map(l => cardLote(l)).join("")}</div>`;
+  html += blocoSitesLeilao() + blocoCalculadora();
+  setTimeout(atualizarCalc, 0);
   return html + guiaLeilao();
 }
+
+
+// ---------------------------------------------------------------- leilões: sites e calculadora
+const NOME_LEILOEIRO = {"copart.com.br": "Copart", "sodresantoro.com.br": "Sodré Santoro", "freitasleiloeiro.com.br": "Freitas Leiloeiro",
+  "vipleiloes.com.br": "VIP Leilões", "megaleiloes.com.br": "Mega Leilões", "superbid.net": "Superbid", "pestanaleiloes.com.br": "Pestana Leilões",
+  "palaciodosleiloes.com.br": "Palácio dos Leilões", "mgl.com.br": "MGL Leilões"};
+function blocoSitesLeilao() {
+  const sites = DADOS.leiloes?.config?.sites || Object.keys(NOME_LEILOEIRO);
+  return `<h2>🏛️ Leiloeiros: abra e escolha você</h2>
+    <p class="muted">Os sites de leilão mostram os lotes só quando você abre no navegador. Filtre por <b>veículos</b> e <b>RJ</b> no próprio site e, ao achar um carro interessante, faça a conta na calculadora abaixo.</p>
+    <div class="chips">${sites.map(d => `<a class="btn" href="https://www.${esc(d)}" target="_blank" rel="noopener">${esc(NOME_LEILOEIRO[d] || d)} ↗</a>`).join("")}
+    <a class="btn primario" href="https://veiculos.fipe.org.br/" target="_blank" rel="noopener">Consultar FIPE ↗</a></div>`;
+}
+function lotesManuais() {
+  const cfg = CFG_LEIL();
+  return (estado.lotesManuais || []).map(l => { const c = contaLoteJs(l, cfg); return {...l, conta: c, situacao: situacaoLote(l, c, cfg), manual: true}; });
+}
+function blocoCalculadora() {
+  const tipos = Object.entries(TIPO_LOTE).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  return `<h2>🧮 Calculadora de lote</h2>
+    <form class="card calc" id="calc-lote" style="padding:16px">
+      <div class="calc-grade">
+        <label>Carro<input name="marca_modelo" placeholder="Ex.: Chevrolet Onix 1.0 LT" required></label>
+        <label>Ano<input name="ano" type="number" min="1990" max="2030" placeholder="2018"></label>
+        <label>Km<input name="km" type="number" min="0" placeholder="80000"></label>
+        <label>Tipo do lote<select name="tipo">${tipos}</select></label>
+        <label>Lance (R$)<input name="lance_atual" type="number" min="0" step="100" required placeholder="25000"></label>
+        <label>FIPE (R$)<input name="valor_fipe" type="number" min="0" step="100" required placeholder="48000"></label>
+        <label>Reparo estimado (R$)<input name="reparo_estimado" type="number" min="0" step="100" value="0"></label>
+        <label>Data do leilão<input name="data_leilao" type="date"></label>
+        <label>Local<input name="local" placeholder="Duque de Caxias/RJ"></label>
+        <label>Leiloeiro<input name="leiloeiro" placeholder="Copart"></label>
+        <label class="largo">Link do lote<input name="url" type="url" placeholder="https://..."></label>
+      </div>
+      <div class="calc-res" id="calc-res" aria-live="polite"></div>
+      <div class="acoes"><button class="btn primario" type="submit">Salvar na minha lista</button><button class="btn" type="reset">Limpar</button></div>
+    </form>`;
+}
+function lerCalc(form) {
+  const f = Object.fromEntries(new FormData(form));
+  const num = v => v === "" || v == null ? null : Number(v);
+  return {marca_modelo: f.marca_modelo.trim(), titulo: f.marca_modelo.trim(), ano: num(f.ano), km: num(f.km), tipo: f.tipo,
+    lance_atual: num(f.lance_atual) || 0, valor_fipe: num(f.valor_fipe), reparo_estimado: num(f.reparo_estimado) || 0,
+    data_leilao: f.data_leilao || "", local: f.local.trim(), leiloeiro: f.leiloeiro.trim(), url: f.url.trim(), condicao: "", alertas: [], fipe_fonte: "você"};
+}
+function atualizarCalc() {
+  const form = document.getElementById("calc-lote"); if (!form) return;
+  const l = lerCalc(form), cfg = CFG_LEIL();
+  const out = document.getElementById("calc-res");
+  if (!l.lance_atual || !l.valor_fipe) { out.innerHTML = `<p class="muted">Preencha o lance e a FIPE para ver a conta.</p>`; return; }
+  const c = contaLoteJs(l, cfg), sit = situacaoLote(l, c, cfg), [rot, cor] = SIT_LOTE[sit];
+  out.innerHTML = `<div class="conta" style="margin-top:12px">
+    <span class="neg">custo total (lance + ${cfg.comissao_leiloeiro_pct}% + ${brl(cfg.custos_fixos_reais)} + reparo)</span><span class="tot">${brl(c.total)}</span>
+    <span class="neg">revenda (FIPE −${c.desagio_pct}%)</span><span>${brl(c.revenda)}</span>
+    <span class="tot">lucro estimado</span><span class="tot">${c.lucro != null ? (c.lucro >= 0 ? "+" : "") + brl(c.lucro) + " (" + pct(c.margem) + ")" : "—"}</span></div>
+    <p style="margin:10px 0 0"><span class="pill"><span class="dot" style="background:${cor}"></span>${rot}</span>
+    ${c.lance_maximo_lucrativo ? ` 🎯 Para lucrar ${cfg.margem_min_pct}%, não passe de <b>${brl(c.lance_maximo_lucrativo)}</b> de lance.` : ""}</p>`;
+}
+document.addEventListener("input", e => { if (e.target.closest?.("#calc-lote")) atualizarCalc(); });
+document.addEventListener("change", e => { if (e.target.closest?.("#calc-lote")) atualizarCalc(); });
+document.addEventListener("reset", e => { if (e.target.id === "calc-lote") setTimeout(atualizarCalc, 0); });
+document.addEventListener("submit", e => {
+  if (e.target.id !== "calc-lote") return;
+  e.preventDefault();
+  const l = lerCalc(e.target);
+  if (l.url && !/^https?:\/\//i.test(l.url)) l.url = "";
+  l.id = "manual-" + Date.now();
+  (estado.lotesManuais ||= []).unshift(l); salvar(); render();
+});
 
 // ---------------------------------------------------------------- aba Hoje
 function renderHoje() {
@@ -1114,6 +1192,8 @@ document.addEventListener("click", e => {
     estado.exemplos[aba] = !atual; salvar(); render(); return;
   }
   if (e.target.closest("[data-exemplo-link]")) { e.preventDefault(); alert("Este é um card de exemplo: os links aparecem nos cards reais."); return; }
+  const rl = e.target.closest("[data-remover-lote]");
+  if (rl) { estado.lotesManuais = (estado.lotesManuais || []).filter(l => l.id !== rl.dataset.removerLote); salvar(); render(); return; }
   if (e.target.closest("[data-limpar-olx]")) { if (confirm("Apagar os anúncios trazidos da OLX?")) { delete estado.importOlx; IMPORTADOS = []; salvar(); render(); } return; }
   if (e.target.closest("[data-limpar-item]")) { filtros.item = ""; salvar(); render(); return; }
   const f = e.target.closest("[data-foto]");
