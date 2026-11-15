@@ -522,7 +522,7 @@ function cardPromo(p, exemplo = false) {
     <div class="corpo">
       <h3><a ${link}>${esc(p.titulo)}</a></h3>
       <div class="precos"><span class="preco">${brl(p.preco)}</span><span class="lucro">+${brl(p.lucro)} (${pct(p.margem)})</span></div>
-      <div class="muted">Revende por ~${brl(p.revenda)} (mediana de ${p.n_ref} usados no Rio)</div>
+      <div class="muted">Revende por ~${brl(p.revenda)} ${p.fonte_revenda === "web" ? "(preço típico de usado na web; ainda sem anúncios da OLX)" : `(mediana de ${p.n_ref} usados no Rio)`}</div>
       <div class="badges"><span class="pill">🏬 ${esc(p.loja)}</span>${p.vendido_por ? `<span class="pill">📦 vendido por ${esc(p.vendido_por)}</span>` : ""}${p.cupom ? `<span class="pill">🎟️ ${esc(p.cupom)}</span>` : ""}</div>
       ${p.via_comunidade ? `<div class="mini">🔗 Link de comunidade de promoções: confira se o preço ainda vale na loja.</div>` : ""}
       ${p.observacao ? `<div class="mini">ℹ️ ${esc(p.observacao)}</div>` : ""}
@@ -548,7 +548,7 @@ function renderPromocoes() {
     : `<div class="vazio">Nenhuma promoção que dê lucro agora. ${P.ultima ? `Última procura ${ha(P.ultima.pesquisado_em)}${P.ultima.erro ? " (falhou: " + esc(P.ultima.erro) + ")" : ""}.` : P.tetos.length ? "A primeira procura acontece na próxima execução." : "O robô precisa primeiro de preços de usados (após as primeiras execuções) para saber quanto vale cada produto."}</div>`;
   if (P.ultima?.resumo) html += `<div class="resumo-ia" style="margin-top:12px">🤖 ${esc(P.ultima.resumo)}</div>`;
   if (P.tetos.length) html += `<h2>🎯 O que o robô está procurando</h2><p class="muted">Preço máximo de compra para cada produto dar ${DADOS.regras.margem_min_pct}% de lucro e pelo menos ${brl(DADOS.regras.lucro_min_reais)}.</p>
-    <table><thead><tr><th>Produto</th><th class="num">Compre até</th><th class="num">Revende por ~</th><th class="num">Usados comparados</th></tr></thead><tbody>${P.tetos.map(t => `<tr><td>${esc(t.nome)}</td><td class="num"><b>${brl(t.teto)}</b></td><td class="num">${brl(t.mediana)}</td><td class="num">${t.n}</td></tr>`).join("")}</tbody></table>`;
+    <table><thead><tr><th>Produto</th><th class="num">Compre até</th><th class="num">Revende por ~</th><th class="num">Base do preço</th></tr></thead><tbody>${P.tetos.map(t => `<tr><td>${esc(t.nome)}</td><td class="num"><b>${brl(t.teto)}</b></td><td class="num">${brl(t.mediana)}</td><td class="num">${t.fonte === "web" ? "pesquisa web" : t.n + " anúncios OLX"}</td></tr>`).join("")}</tbody></table>`;
   html += `<h2>🛡️ Sites aceitos</h2><div class="chips">${P.lojas.map(l => `<span class="chip">${esc(l)}</span>`).join("")}</div><p class="mini">Edite a lista em <code>config/regras.yaml</code> (promocoes → lojas_confiaveis). Em marketplaces, prefira "vendido e entregue por" a própria loja ou loja oficial.</p>`;
   return html;
 }
@@ -603,7 +603,9 @@ function renderTopo() {
   const avisos = [];
   if ((Date.now() - ger) / 3600000 > 8) avisos.push("⏳ O painel não é atualizado há mais de 8 horas. Confira a aba Actions do repositório.");
   const ult = DADOS.execucoes[0];
-  if (ult && ult.erros.some(e => /bloque|403|anti-robô/i.test(e))) avisos.push("🚧 A OLX bloqueou parte das buscas na última execução. Os dados podem estar incompletos.");
+  if (ult && ult.erros.some(e => /bloque|403|anti-robô/i.test(e))) avisos.push(ult.coletados === 0
+    ? "🚧 A OLX bloqueou o robô na última execução (nenhum anúncio coletado). Promoções, preço novo e passagens continuam funcionando."
+    : "🚧 A OLX bloqueou parte das buscas na última execução. Os dados podem estar incompletos.");
   if (!DADOS.execucoes.length) avisos.push("🚀 Ainda não houve nenhuma execução. Rode o workflow manualmente em Actions.");
   document.getElementById("avisos").innerHTML = avisos.map(a => `<div class="aviso">${a}</div>`).join("");
   const opp = DADOS.anuncios.filter(a => a.situacao === "oportunidade");

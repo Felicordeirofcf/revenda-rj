@@ -18,6 +18,7 @@ class Referencia:
     p75: float
     menor: float
     n: int
+    fonte: str = "olx"  # "olx" (anúncios coletados) ou "web" (preço típico de usado achado pelo Claude)
 
 
 def _quantil(valores: list[float], q: float) -> float:

@@ -13,7 +13,7 @@ from sqlalchemy import select
 from .database import AnuncioDB, Database, agora, utc
 from .database import PesquisaDB
 from .precos import calcular_referencias, escolher_referencia
-from .promocoes import montar_achados, tetos_de_compra
+from .promocoes import montar_achados, precos_de_revenda, tetos_de_compra
 
 TEMPLATE = Path(__file__).with_name("dashboard_template.html")
 
@@ -125,9 +125,11 @@ def montar_dados(db: Database, regras: dict, catalogo: Catalogo, passagens: dict
             if w and quando - utc(w.pesquisado_em) <= timedelta(days=7):
                 produtos_web[item.id] = w
         ultima_promo = db.ultima_pesquisa(s, "promocoes", "geral")
+        todos_web = {i.id: w for i in catalogo.itens if (w := db.ultima_pesquisa(s, "produto", i.id, so_sucesso=True))}
+        revenda = precos_de_revenda(catalogo, refs, todos_web, regras)
         promocoes = {
-            "achados": montar_achados(recentes, produtos_web, catalogo, refs, regras, quando),
-            "tetos": tetos_de_compra(catalogo, refs, regras),
+            "achados": montar_achados(recentes, produtos_web, catalogo, revenda, regras, quando),
+            "tetos": tetos_de_compra(catalogo, revenda, regras),
             "ultima": ({"pesquisado_em": _iso(ultima_promo.pesquisado_em), "erro": ultima_promo.erro,
                         "resumo": ultima_promo.dados.get("resumo")} if ultima_promo else None),
             "lojas": (regras.get("promocoes") or {}).get("lojas_confiaveis") or [],

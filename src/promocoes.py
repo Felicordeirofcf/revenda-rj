@@ -29,32 +29,50 @@ def dominio_confiavel(url: str | None, dominios: Iterable[str]) -> str | None:
     return None
 
 
-def tetos_de_compra(catalogo: Catalogo, refs: dict[str, Referencia], regras: dict) -> list[dict[str, Any]]:
-    """Maior preço de compra que ainda dá a margem e o lucro mínimos, por produto com referência."""
+def precos_de_revenda(catalogo: Catalogo, refs: dict[str, Referencia], produtos_web: dict[str, Any],
+                      regras: dict) -> dict[str, Referencia]:
+    """Preço de revenda por produto: mediana da OLX quando há amostras suficientes; senão, o preço
+    típico de usado que a pesquisa web encontrou (útil quando a OLX bloqueia a coleta)."""
     minimo = regras.get("referencia_min_amostras", 5)
+    revenda: dict[str, Referencia] = {}
+    for item in catalogo.itens:
+        ref, _ = escolher_referencia(item.id, None, refs, minimo)
+        if ref and ref.n >= minimo:
+            revenda[item.id] = ref
+            continue
+        web = produtos_web.get(item.id)
+        tipico = (web.dados if web else {}).get("preco_usado_tipico")
+        if tipico and tipico >= item.preco_min:
+            v = float(tipico)
+            revenda[item.id] = Referencia(mediana=v, p25=v, p75=v, menor=v, n=0, fonte="web")
+    return revenda
+
+
+def tetos_de_compra(catalogo: Catalogo, revenda: dict[str, Referencia], regras: dict) -> list[dict[str, Any]]:
+    """Maior preço de compra que ainda dá a margem e o lucro mínimos, por produto com preço de revenda."""
     margem = regras.get("margem_min_pct", 20) / 100
     lucro_min = regras.get("lucro_min_reais", 0)
     orcamento = regras.get("orcamento_max", float("inf"))
     tetos = []
     for item in catalogo.itens:
-        ref, _ = escolher_referencia(item.id, None, refs, minimo)
-        if not ref or ref.n < minimo:
+        ref = revenda.get(item.id)
+        if not ref:
             continue
         lucro_zero, _ = conta_margem(0, ref.mediana, regras)  # = venda estimada - custos
         teto = min(lucro_zero / (1 + margem), lucro_zero - lucro_min, orcamento)
         if teto > 0:
-            tetos.append({"id": item.id, "nome": item.nome, "teto": round(teto), "mediana": ref.mediana, "n": ref.n})
+            tetos.append({"id": item.id, "nome": item.nome, "teto": round(teto), "mediana": ref.mediana, "n": ref.n,
+                          "fonte": ref.fonte})
     return tetos
 
 
 def montar_achados(pesquisas: list[Any], produtos_web: dict[str, Any], catalogo: Catalogo,
-                   refs: dict[str, Referencia], regras: dict, agora_: datetime) -> list[dict[str, Any]]:
+                   revenda: dict[str, Referencia], regras: dict, agora_: datetime) -> list[dict[str, Any]]:
     """Junta as ofertas do caçador de promoções e das pesquisas de preço novo, só de sites confiáveis,
     calcula a margem contra a mediana dos usados e devolve as que dão lucro (mais recentes primeiro)."""
     cfg = regras.get("promocoes") or {}
     lojas = cfg.get("lojas_confiaveis") or []
     comunidades = cfg.get("sites_de_promocao") or []
-    minimo = regras.get("referencia_min_amostras", 5)
     margem_min = regras.get("margem_min_pct", 20)
     lucro_min = regras.get("lucro_min_reais", 0)
 
@@ -76,8 +94,8 @@ def montar_achados(pesquisas: list[Any], produtos_web: dict[str, Any], catalogo:
         if not (loja_ok or comunidade) or url in vistos:
             continue
         item = catalogo.por_id(a.get("produto_id", ""))
-        ref, _ = escolher_referencia(item.id, None, refs, minimo) if item else (None, None)
-        if not item or not ref or ref.n < minimo or not a.get("preco"):
+        ref = revenda.get(item.id) if item else None
+        if not item or not ref or not a.get("preco"):
             continue
         lucro, margem = conta_margem(float(a["preco"]), ref.mediana, regras)
         if margem < margem_min or lucro < lucro_min:
@@ -90,7 +108,7 @@ def montar_achados(pesquisas: list[Any], produtos_web: dict[str, Any], catalogo:
             "vendido_por": a.get("vendido_por") or "", "preco": float(a["preco"]), "cupom": a.get("cupom") or "",
             "url": url, "dominio": loja_ok or comunidade, "via_comunidade": bool(comunidade),
             "publicado": a.get("publicado") or "", "observacao": a.get("observacao") or "",
-            "revenda": round(ref.mediana, 2), "n_ref": ref.n, "lucro": round(lucro, 2), "margem": round(margem, 1),
+            "revenda": round(ref.mediana, 2), "n_ref": ref.n, "fonte_revenda": ref.fonte, "lucro": round(lucro, 2), "margem": round(margem, 1),
             "achado_em": quando.isoformat() if hasattr(quando, "isoformat") else str(quando), "origem": origem,
         })
     return achados

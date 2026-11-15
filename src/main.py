@@ -28,7 +28,7 @@ from .ia_base import IAError
 from .models import UsoTokens
 from .pesquisa_web import PesquisadorWeb
 from .precos import avaliar, calcular_referencias
-from .promocoes import tetos_de_compra
+from .promocoes import precos_de_revenda, tetos_de_compra
 from .regiao import regiao_aceita
 from .triagem import Triador
 
@@ -218,7 +218,10 @@ class Robo:
         promo = self.regras.get("promocoes") or {}
         if promo.get("ativa") and hasattr(self, "referencias"):
             intervalo = timedelta(hours=float(promo.get("refazer_a_cada_horas", 6)))
-            tetos = tetos_de_compra(self.catalogo, self.referencias, self.regras)
+            produtos_web = {i.id: w for i in self.catalogo.itens
+                            if (w := self.db.ultima_pesquisa(s, "produto", i.id, so_sucesso=True))}
+            revenda = precos_de_revenda(self.catalogo, self.referencias, produtos_web, self.regras)
+            tetos = tetos_de_compra(self.catalogo, revenda, self.regras)
             if tetos and vencido("promocoes", "geral", intervalo):
                 pesq_promo = PesquisadorWeb(self.client, cfg.get("modelo", "claude-sonnet-5-5"), cfg.get("effort", "low"),
                                             int(promo.get("max_buscas_por_pesquisa", 6)))

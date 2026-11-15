@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from src.precos import Referencia
-from src.promocoes import dominio_confiavel, montar_achados, tetos_de_compra
+from src.promocoes import dominio_confiavel, montar_achados, precos_de_revenda, tetos_de_compra
 
 LOJAS = ["amazon.com.br", "kabum.com.br", "mercadolivre.com.br"]
 
@@ -22,8 +22,8 @@ def refs():
 
 
 def test_tetos(catalogo, regras):
-    tetos = {t["id"]: t for t in tetos_de_compra(catalogo, refs(), regras)}
-    assert "iphone-13" not in tetos  # referência fraca
+    tetos = {t["id"]: t for t in tetos_de_compra(catalogo, precos_de_revenda(catalogo, refs(), {}, regras), regras)}
+    assert "iphone-13" not in tetos  # referência fraca e sem pesquisa web
     # venda 2800*0.93=2604; -40 = 2564; /1.2 = 2136.7; 2564-100=2464 -> teto 2137
     assert tetos["ps5"]["teto"] == 2137
 
@@ -40,7 +40,18 @@ def test_montar_achados_filtra_site_e_margem(catalogo, regras):
         {"produto_id": "ps5", "titulo": "PS5 via Pelando", "loja": "Kabum", "vendido_por": "", "preco": 1990,
          "cupom": "", "url": "https://www.pelando.com.br/d/abc", "publicado": "", "observacao": ""},
     ]})
-    achados = montar_achados([pesquisa], {}, catalogo, refs(), regras, agora)
+    achados = montar_achados([pesquisa], {}, catalogo, precos_de_revenda(catalogo, refs(), {}, regras), regras, agora)
     urls = [a["url"] for a in achados]
     assert urls == ["https://www.amazon.com.br/ps5", "https://www.pelando.com.br/d/abc"]
     assert achados[0]["margem"] >= 20 and achados[1]["via_comunidade"] is True
+
+
+def test_revenda_cai_para_pesquisa_web_quando_olx_falta(catalogo, regras):
+    web = {"iphone-13": SimpleNamespace(dados={"preco_usado_tipico": 2400}),
+           "iphone-12": SimpleNamespace(dados={"preco_usado_tipico": 50})}  # abaixo do mínimo plausível
+    revenda = precos_de_revenda(catalogo, refs(), web, regras)
+    assert revenda["ps5"].fonte == "olx"
+    assert revenda["iphone-13"].fonte == "web" and revenda["iphone-13"].mediana == 2400
+    assert "iphone-12" not in revenda
+    tetos = {t["id"]: t for t in tetos_de_compra(catalogo, revenda, regras)}
+    assert tetos["iphone-13"]["fonte"] == "web" and tetos["iphone-13"]["teto"] > 0
