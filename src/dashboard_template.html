@@ -277,7 +277,7 @@ function cardAnuncio(a, exemplo = false) {
         ${a.lucro != null ? `<span class="lucro">${a.lucro >= 0 ? "+" : ""}${brl(a.lucro)} (${pct(a.margem)})</span>` : ""}</div>
       <div class="muted">${refTxt}</div>
       ${faixaPreco(refFaixa, a.preco)}
-      <div class="muted">📍 ${esc(a.bairro || "bairro ?")}${(a.zona || a.cidade) && (a.zona || a.cidade) !== a.bairro ? " · " + esc(a.zona || a.cidade) : ""} · ${ha(a.publicado_em || a.primeiro_visto)}</div>
+      <div class="muted">📍 ${esc(a.bairro || "bairro ?")}${(a.zona || a.cidade) && (a.zona || a.cidade) !== a.bairro ? " · " + esc(a.zona || a.cidade) : ""}${(a.publicado_em || a.primeiro_visto) ? " · " + ha(a.publicado_em || a.primeiro_visto) : ""}</div>
       <div class="mini">${ICONE[a.categoria] || ""} ${esc(a.item_nome)}${a.variante ? " · " + esc(a.variante) : ""}${a.motivo ? " · " + esc(a.motivo) : ""}</div>
       ${linhaNovo}${vendidoInfo}
       <div class="badges">${badges.join("")}</div>
@@ -340,12 +340,14 @@ L=best.slice(0,100).map(a=>{const ld=a.locationDetails||{};const im=(a.images||[
 if(!L.length){const vistos=new Set();
 for(const a of document.querySelectorAll('a[href]')){let u;try{u=new URL(a.href,location.href)}catch(e){continue}
 if(!/(^|\.)olx\.com\.br$/.test(u.hostname))continue;const m=u.pathname.match(/-(\d{6,})\/?$/);if(!m||vistos.has(m[1]))continue;
-let card=a;for(let k=0;k<8&&card.parentElement;k++){if(/R\$\s?\d/.test(card.innerText||''))break;card=card.parentElement}
+const idDe=h=>{try{const x=new URL(h,location.href);const q=x.pathname.match(/-(\d{6,})\/?$/);return /(^|\.)olx\.com\.br$/.test(x.hostname)&&q?q[1]:null}catch(e){return null}};
+let card=a;while(card.parentElement&&card.parentElement!==document.body){const p=card.parentElement;let outro=false;for(const l of p.querySelectorAll('a[href]')){const i=idDe(l.href);if(i&&i!==m[1]){outro=true;break}}if(outro)break;card=p}
 const txt=card.innerText||'';const pm=txt.match(/R\$\s?[\d.]+(,\d{2})?/);if(!pm)continue;vistos.add(m[1]);
 const linhas=txt.split('\n').map(x=>x.trim()).filter(Boolean);
 const tit=(a.getAttribute('title')||(card.querySelector('h2,h3')||{}).innerText||(card.querySelector('img[alt]')||{}).alt||linhas.find(x=>!/R\$/.test(x))||'').trim();
 const loc=linhas.find(x=>/^[A-ZÀ-Ú][^,]{2,40},\s*[^,]{2,50}$/.test(x)&&!/R\$|hoje|ontem|\d{1,2}:\d{2}/i.test(x))||'';
-const img=card.querySelector('img');const isrc=img?(img.currentSrc||img.src||img.getAttribute('data-src')||''):'';
+let isrc='';for(const im of card.querySelectorAll('img')){const cs=[im.currentSrc,im.src,im.getAttribute('data-src'),(im.getAttribute('srcset')||im.getAttribute('data-srcset')||'').split(' ')[0]];const ok=cs.find(c=>c&&/^https?:/.test(c));if(ok){isrc=ok;break}}
+if(!isrc){const so=card.querySelector('source[srcset]');if(so)isrc=(so.getAttribute('srcset')||'').split(' ')[0]}
 const pp=loc.split(',');L.push({t:tit,p:pm[0],u:u.origin+u.pathname,id:m[1],c:(pp[0]||'').trim(),b:(pp[1]||'').trim(),l:'',i:/^https?:/.test(isrc)?isrc:'',d:'',pr:/profissional|loja/i.test(txt)});if(L.length>=100)break}}
 if(!L.length){alert('Não encontrei anúncios nesta página. Abra uma página de RESULTADOS de busca da OLX (ex.: pesquise "iphone 13" ou use os botões do painel), espere carregar e clique de novo.');return}
 const j=JSON.stringify({v:1,q:location.href,em:Date.now(),a:L});

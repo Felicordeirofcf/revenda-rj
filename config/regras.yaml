@@ -90,6 +90,7 @@ pesquisa_web:
   produtos:
     refazer_a_cada_dias: 14         # preço de novo muda devagar
     max_por_execucao: 2
+    max_por_execucao_inicial: 4     # enquanto houver produto nunca pesquisado
   passagens:
     refazer_a_cada_horas: 22        # 1 vez por dia por rota
     max_por_execucao: 2

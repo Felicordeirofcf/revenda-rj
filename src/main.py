@@ -233,7 +233,11 @@ class Robo:
         pc = cfg.get("produtos") or {}
         intervalo = timedelta(days=float(pc.get("refazer_a_cada_dias", 3)))
         devidos = [i for i in self.catalogo.itens if vencido("produto", i.id, intervalo)]
-        for item in devidos[: int(pc.get("max_por_execucao", 3))]:
+        nunca = any(self.db.ultima_pesquisa(s, "produto", i.id) is None for i in devidos)
+        limite = int(pc.get("max_por_execucao_inicial" if nunca else "max_por_execucao", pc.get("max_por_execucao", 2)))
+        # Prioridade: produtos nunca pesquisados primeiro.
+        devidos.sort(key=lambda i: self.db.ultima_pesquisa(s, "produto", i.id) is not None)
+        for item in devidos[:limite]:
             registrar("produto", item.id, lambda item=item: pesq.preco_novo(item.nome, item.buscas))
 
         pp = cfg.get("passagens") or {}
