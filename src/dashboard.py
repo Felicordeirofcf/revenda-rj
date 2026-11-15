@@ -14,6 +14,7 @@ from .database import AnuncioDB, Database, agora, utc
 from .database import PesquisaDB
 from .precos import calcular_referencias, escolher_referencia
 from .promocoes import montar_achados, precos_de_revenda, tetos_de_compra
+from .regiao import BAIRRO_PARA_ZONA
 
 TEMPLATE = Path(__file__).with_name("dashboard_template.html")
 
@@ -155,6 +156,18 @@ def montar_dados(db: Database, regras: dict, catalogo: Catalogo, passagens: dict
         "checklists": catalogo.checklists,
         "passagens": rotas,
         "promocoes": promocoes,
+        # Para a "Análise OLX" (favorito): o painel classifica no navegador os anúncios que o usuário trouxe.
+        "analise_olx": {
+            "catalogo": [{"id": i.id, "nome": i.nome, "categoria": i.categoria, "padrao": i.padrao.pattern,
+                          "excluir": i.excluir.pattern if i.excluir else None, "variante": i.variante,
+                          "preco_min": i.preco_min} for i in catalogo.itens],
+            "exclusoes": regras.get("excluir_sempre") or {},
+            "bairros": BAIRRO_PARA_ZONA,
+            "municipios": regras.get("municipios_aceitos") or [],
+            "zonas": regras.get("zonas_aceitas") or [],
+            "aceitar_bairro_desconhecido": regras.get("aceitar_bairro_desconhecido", True),
+            "revenda": {k: {"mediana": v.mediana, "n": v.n, "fonte": v.fonte} for k, v in revenda.items()},
+        },
         "execucoes": execucoes,
     }
 

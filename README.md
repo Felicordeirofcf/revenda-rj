@@ -32,6 +32,16 @@ A cada 2 horas, das 7h às 23h, o robô (no seu PC Windows, veja abaixo) executa
 | 💰 Minhas operações | Botões 🛒 Comprei e 💰 Vendi, lucro realizado e ranking por categoria. Fica salvo no navegador, com opção de exportar e importar. |
 | ⚙️ Execuções | Histórico das execuções, custo e erros. |
 
+## 🔎 Análise OLX com o favorito (a OLX não permite robôs)
+
+A coleta automática da OLX está desligada, porque ela bloqueia programas. No lugar dela:
+
+1. Na aba **🔎 Análise OLX** do painel, **arraste** o botão **📥 Analisar no Revenda RJ** para a barra de favoritos do navegador (Ctrl+Shift+B mostra a barra).
+2. Abra uma busca da OLX. Os botões **"🔎 Buscar na OLX até R$ X"** já abrem com o preço máximo que dá lucro.
+3. Com os anúncios na tela, clique no favorito. Ele lê os anúncios **que já estão na sua tela** e abre o painel com cards, lucro e margem. Nada é enviado a servidor nenhum; a análise da IA não roda nesse modo.
+
+Dica: no app da OLX, salve as buscas e ative os **alertas** para ser avisado de anúncios novos.
+
 ## Rodar no seu PC Windows (recomendado: a OLX bloqueia os servidores do GitHub)
 
 A OLX recusa acessos vindos de datacenters, como os do GitHub Actions. No seu computador, com internet de casa, a coleta funciona. O agendamento do GitHub está desligado; quem roda a cada 2h é o seu PC, que envia o painel para o GitHub Pages.
