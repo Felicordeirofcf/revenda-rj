@@ -1,9 +1,11 @@
 name: Monitor de revenda RJ
 
+# A execução agendada agora roda no PC do usuário (windows/instalar.ps1), porque a OLX bloqueia
+# os IPs do GitHub. Este workflow fica só para rodar manualmente (sem a OLX).
+# Para voltar a agendar aqui, descomente o bloco "schedule" (e desinstale o agendamento do PC).
 on:
-  schedule:
-    # A cada 2h das 7h às 23h (horário de Brasília = UTC-3), minuto 23 para fugir do pico.
-    - cron: "23 10-23/2,0,2 * * *"
+  # schedule:
+  #   - cron: "23 10-23/2,0,2 * * *"   # a cada 2h das 7h às 23h (Brasília)
   workflow_dispatch:
     inputs:
       sem_ia:

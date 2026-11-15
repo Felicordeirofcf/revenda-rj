@@ -4,7 +4,7 @@ Robô que procura **eletrônicos usados abaixo do preço de mercado** no Rio de 
 
 ## Como funciona
 
-A cada 2 horas, das 7h às 23h, o GitHub Actions executa estas etapas:
+A cada 2 horas, das 7h às 23h, o robô (no seu PC Windows, veja abaixo) executa estas etapas:
 
 1. **Coleta** anúncios na OLX (região do Rio) para cada produto de `config/catalogo.yaml`.
 2. **Classifica** cada anúncio. O robô identifica o modelo (por exemplo, iPhone 13 é diferente de iPhone 13 Pro) e o armazenamento. Saem da conta acessórios ("Capa iPhone 13"), peças, defeitos, aparelhos bloqueados, trocas e anúncios fora das regiões aceitas. Termos negados não excluem o anúncio: "sem defeito" passa.
@@ -31,6 +31,26 @@ A cada 2 horas, das 7h às 23h, o GitHub Actions executa estas etapas:
 | ✈️ Passagens | Melhores voos de cada rota, histórico de preço e alerta abaixo do preço-alvo. |
 | 💰 Minhas operações | Botões 🛒 Comprei e 💰 Vendi, lucro realizado e ranking por categoria. Fica salvo no navegador, com opção de exportar e importar. |
 | ⚙️ Execuções | Histórico das execuções, custo e erros. |
+
+## Rodar no seu PC Windows (recomendado: a OLX bloqueia os servidores do GitHub)
+
+A OLX recusa acessos vindos de datacenters, como os do GitHub Actions. No seu computador, com internet de casa, a coleta funciona. O agendamento do GitHub está desligado; quem roda a cada 2h é o seu PC, que envia o painel para o GitHub Pages.
+
+1. Instale o **Python 3.12** (https://www.python.org/downloads/, marque *Add python.exe to PATH*) e o **Git** (https://git-scm.com/download/win).
+2. No PowerShell:
+   ```powershell
+   cd $HOME
+   git clone https://github.com/Felicordeirofcf/revenda-rj
+   cd revenda-rj
+   powershell -ExecutionPolicy Bypass -File windows\instalar.ps1
+   ```
+   O instalador cria o ambiente Python, pede sua chave da Anthropic (fica só no arquivo `.env` do PC) e agenda a tarefa **Revenda RJ** a cada 2h, das 7h às 23h. Se o PC estiver desligado no horário, ela roda assim que ligar.
+3. Rode uma vez na mão para testar e autorizar o Git a enviar ao GitHub (abre o login no navegador na 1ª vez):
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File windows\rodar.ps1
+   ```
+   Veja o resultado em `logs\python-AAAA-MM-DD.log` (linha `Coletados N ...`).
+4. Para remover o agendamento: `powershell -ExecutionPolicy Bypass -File windows\desinstalar.ps1`.
 
 ## Configuração (uma vez só)
 
