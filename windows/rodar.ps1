@@ -8,6 +8,12 @@ $log = "logs\robo-$(Get-Date -Format 'yyyy-MM-dd').log"
 Start-Transcript -Path $log -Append | Out-Null
 Write-Host "===== $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ====="
 
+# Identidade do Git só deste repositório (os commits do robô precisam de nome e e-mail).
+if (-not (git config user.email)) {
+    git config user.name "Revenda RJ (PC)"
+    git config user.email "revenda-rj@users.noreply.github.com"
+}
+
 # Pega mudanças de configuração feitas no GitHub (catálogo, regras, rotas...).
 git pull --rebase --autostash -X theirs origin main
 if ($LASTEXITCODE -ne 0) { git rebase --abort 2>$null; Write-Host "Aviso: não consegui atualizar do GitHub; sigo com a versão local." }
@@ -22,12 +28,22 @@ git add data docs
 git diff --cached --quiet
 if ($LASTEXITCODE -ne 0) {
     git commit -m "chore(dados): atualiza $(Get-Date -Format 'yyyy-MM-dd HH:mm') (PC)" | Out-Null
-    for ($i = 1; $i -le 4; $i++) {
-        git pull --rebase -X theirs origin main
-        git push origin main
-        if ($LASTEXITCODE -eq 0) { Write-Host "Enviado para o GitHub."; break }
-        Write-Host "Push falhou (tentativa $i), tentando de novo..."
-        Start-Sleep -Seconds (5 * $i)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERRO: o commit falhou; nada foi enviado ao GitHub." -ForegroundColor Red
+        if ($codigo -eq 0) { $codigo = 2 }
+    } else {
+        $enviado = $false
+        for ($i = 1; $i -le 4; $i++) {
+            git pull --rebase -X theirs origin main
+            if ($LASTEXITCODE -eq 0) {
+                git push origin main
+                if ($LASTEXITCODE -eq 0) { $enviado = $true; break }
+            } else { git rebase --abort 2>$null }
+            Write-Host "Envio falhou (tentativa $i), tentando de novo..."
+            Start-Sleep -Seconds (5 * $i)
+        }
+        if ($enviado) { Write-Host "Enviado para o GitHub." -ForegroundColor Green }
+        else { Write-Host "ERRO: não consegui enviar ao GitHub." -ForegroundColor Red; if ($codigo -eq 0) { $codigo = 3 } }
     }
 } else { Write-Host "Nada mudou." }
 
