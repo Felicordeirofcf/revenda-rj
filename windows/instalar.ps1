@@ -2,21 +2,42 @@
 # Uso (no PowerShell, dentro da pasta do repositório):
 #   powershell -ExecutionPolicy Bypass -File windows\instalar.ps1
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 $raiz = Split-Path -Parent $PSScriptRoot
 Set-Location $raiz
 Write-Host "Pasta do robô: $raiz" -ForegroundColor Cyan
 
-# 1) Python
+# 1) Python: tenta o lançador "py", o "python" do PATH e as pastas padrão de instalação.
+$candidatos = @()
+if (Get-Command py -ErrorAction SilentlyContinue) { $candidatos += ,@("py", "-3") }
+$cmdPython = Get-Command python -ErrorAction SilentlyContinue
+if ($cmdPython -and $cmdPython.Source -notlike "*WindowsApps*") { $candidatos += ,@($cmdPython.Source) }
+$pastas = @("$env:LOCALAPPDATA\Programs\Python", "$env:ProgramFiles", "${env:ProgramFiles(x86)}")
+foreach ($pasta in $pastas) {
+    if ($pasta -and (Test-Path $pasta)) {
+        Get-ChildItem -Path $pasta -Filter "Python3*" -Directory -ErrorAction SilentlyContinue |
+            Sort-Object Name -Descending | ForEach-Object {
+                $exe = Join-Path $_.FullName "python.exe"
+                if (Test-Path $exe) { $candidatos += ,@($exe) }
+            }
+    }
+}
 $py = $null
-foreach ($c in @("py -3.12", "py -3", "python")) {
-    try { $v = Invoke-Expression "$c --version" 2>$null; if ($LASTEXITCODE -eq 0 -and $v -match "Python 3\.(1[0-9])") { $py = $c; break } } catch {}
+foreach ($c in $candidatos) {
+    $exe = $c[0]; $extra = @($c | Select-Object -Skip 1)
+    $v = (& $exe @extra --version 2>&1 | Out-String).Trim()
+    Write-Host "  testando $($c -join ' '): $v"
+    if ($v -match "Python 3\.(1[0-9])") { $py = $c; break }
 }
 if (-not $py) {
-    Write-Host "Python 3.10+ não encontrado. Instale em https://www.python.org/downloads/ (marque 'Add python.exe to PATH') e rode de novo." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Python 3.10+ não encontrado." -ForegroundColor Red
+    Write-Host "Instale com:  winget install -e --id Python.Python.3.12" -ForegroundColor Yellow
+    Write-Host "(ou baixe em https://www.python.org/downloads/ marcando 'Add python.exe to PATH')"
+    Write-Host "Depois FECHE e ABRA o PowerShell de novo e rode este instalador outra vez."
     exit 1
 }
-Write-Host "Usando: $py ($v)"
+Write-Host "Usando: $($py -join ' ') ($v)" -ForegroundColor Cyan
 
 # 2) Git
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
@@ -27,7 +48,9 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 # 3) Ambiente virtual + dependências
 if (-not (Test-Path ".venv\Scripts\python.exe")) {
     Write-Host "Criando ambiente virtual (.venv)..."
-    Invoke-Expression "$py -m venv .venv"
+    $exe = $py[0]; $extra = @($py | Select-Object -Skip 1)
+    & $exe @extra -m venv .venv
+    if ($LASTEXITCODE -ne 0) { Write-Host "Falha ao criar o ambiente virtual." -ForegroundColor Red; exit 1 }
 }
 & .venv\Scripts\python.exe -m pip install --upgrade pip --quiet
 & .venv\Scripts\python.exe -m pip install -r requirements.txt --quiet
