@@ -50,7 +50,7 @@ A cada 2 horas, das 7h às 23h, o GitHub Actions executa estas etapas:
 - **Triagem (Haiku 5.5):** só roda nos anúncios que passaram na conta de margem. Fica em centavos por dia.
 - **Pesquisa web (Sonnet 5.5):** cerca de US$ 0,10 a 0,20 por pesquisa (buscas a US$ 0,01 cada, mais os tokens das páginas lidas). Na configuração padrão, com 23 produtos a cada 7 dias e 2 rotas por dia, dá uns US$ 15 a 25 por mês sem limite.
 - **Caçador de promoções (Sonnet 5.5):** 3 a 4 procuras por dia, cerca de US$ 0,15 a 0,30 cada. Entra no mesmo teto mensal.
-- **Teto mensal** (`teto_mensal_usd`, padrão US$ 15): ao ser atingido, as pesquisas param até o mês virar.
+- **Teto mensal** (`teto_mensal_usd`, padrão US$ 25): ao ser atingido, as pesquisas param até o mês virar.
 - **GitHub Actions:** grátis em repositório público.
 
 ## Limitações honestas

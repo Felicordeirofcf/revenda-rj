@@ -86,7 +86,7 @@ pesquisa_web:
     refazer_a_cada_horas: 20        # ~1 vez por dia por rota
     max_por_execucao: 3
   # Teto mensal estimado (US$). Se o gasto do mês passar disso, as pesquisas param até o mês virar.
-  teto_mensal_usd: 15
+  teto_mensal_usd: 25
 
 # Caçador de promoções: o Claude procura o catálogo em promoção em LOJAS CONFIÁVEIS e o robô
 # compara com o preço de revenda (mediana dos usados no Rio). Só aparece o que dá lucro.
