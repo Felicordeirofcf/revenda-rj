@@ -129,3 +129,35 @@ promocoes:
   sites_de_promocao:
     - pelando.com.br
     - promobit.com.br
+
+# Leilões de carros: o Claude procura lotes nos sites de leiloeiros conhecidos e o robô faz a conta
+# completa (lance + comissão + custos + reparo) contra o valor de revenda (FIPE com deságio de leilão).
+leiloes:
+  ativa: true
+  refazer_a_cada_horas: 20           # 1 vez por dia
+  max_buscas_por_pesquisa: 4
+  lance_max: 50000                   # maior lance que você toparia dar (R$)
+  regiao: "Rio de Janeiro (RJ); aceitar também SP e MG se o lote for muito bom"
+  comissao_leiloeiro_pct: 5          # padrão de mercado (paga sobre o lance)
+  custos_fixos_reais: 2500           # pátio, despachante, transferência, laudo cautelar, transporte
+  margem_min_pct: 15
+  # Quanto abaixo da FIPE um carro com histórico de leilão revende (o comprador desconta o "passado").
+  desagio_revenda_pct:
+    recuperado_financiamento: 12
+    sinistro_pequena_monta: 25
+    sinistro_media_monta: 35
+    outro: 20
+  # Grande monta e sucata não voltam a circular: só servem para peças (fora da conta de revenda).
+  sites:
+    - copart.com.br
+    - sodresantoro.com.br
+    - freitasleiloeiro.com.br
+    - vipleiloes.com.br
+    - megaleiloes.com.br
+    - superbid.net
+    - pestanaleiloes.com.br
+    - palaciodosleiloes.com.br
+    - leilaovip.com.br
+    - mgl.com.br
+  # Só para consultar o valor FIPE (o link do lote precisa ser de um leiloeiro da lista acima).
+  sites_consulta: ["veiculos.fipe.org.br", "fipe.org.br"]

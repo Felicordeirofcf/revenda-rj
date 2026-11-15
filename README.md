@@ -24,9 +24,11 @@ A cada 2 horas, das 7h às 23h, o robô (no seu PC Windows, veja abaixo) executa
 
 | Aba | O que mostra |
 |---|---|
+| 🏠 Hoje | Resumo do dia numa frase: quantos achados pagam a ida, os melhores com a etiqueta de lucro, e atalhos para cada aba. |
 | 🔔 Oportunidades | Cards com foto, preço, lucro estimado, faixa de preço do mercado, bairro/zona, análise da IA, perguntas ao vendedor e checklist do que conferir na hora. Também mostra os achados que já sumiram e em quanto tempo. |
 | 👀 Em observação | Anúncios quase lá: bons para negociar ou acompanhar. |
 | 🛒 Promoções em lojas | Produtos novos em promoção em sites confiáveis que dão lucro na revenda, com loja, cupom, "vendido por", lucro estimado e a tabela "compre até R$ X" de cada produto. |
+| 🚗 Leilões | Carros em leilão nos leiloeiros conhecidos (Copart, Sodré Santoro, Freitas, VIP, Mega Leilões, Superbid…), 1 pesquisa por dia, com a conta completa: lance + comissão + custos + reparo contra a FIPE com deságio de leilão, e o lance máximo que ainda dá lucro. Inclui um guia de como lucrar com carro de leilão. Ajuste em `config/regras.yaml` → `leiloes`. |
 | 📦 Produtos | Um card por produto com a mediana de usado, preços por armazenamento, as melhores ofertas de novo com link e um aviso quando o usado está perto do preço do novo. |
 | ✈️ Passagens | Melhores voos de cada rota, histórico de preço e alerta abaixo do preço-alvo. |
 | 💰 Minhas operações | Botões 🛒 Comprei e 💰 Vendi, lucro realizado e ranking por categoria. Fica salvo no navegador, com opção de exportar e importar. |

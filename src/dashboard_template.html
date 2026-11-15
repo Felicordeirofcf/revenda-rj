@@ -104,12 +104,111 @@ h2 { font-size: 17px; margin: 22px 0 10px; }
 .foto .pill.exemplo-pill, .pill.exemplo-pill { background: var(--accent); color: #fff; }
 .tip { position: fixed; pointer-events: none; background: var(--text); color: var(--surface); padding: 4px 8px; border-radius: 6px; font-size: 12px; z-index: 50; }
 @media (max-width: 520px) { .grade { grid-template-columns: 1fr; } header, main { padding-left: 12px; padding-right: 12px; } }
+
+/* ===================================================================== visual 2.0
+   Caderno de achados do revendedor carioca. Assinatura: a ETIQUETA de preço (amarela, com furinho)
+   que carrega o lucro de cada achado. Todo o resto fica quieto. */
+:root {
+  --bg: #EEF1F6; --surface: #FFFFFF; --surface-2: #F3F5F9; --border: #DDE3EC;
+  --text: #101828; --text-2: #475467; --text-3: #8A94A6;
+  --accent: #1F5EFF; --accent-soft: #DCE6FF; --band: #BFD0FF;
+  --tag: #FFC93C; --tag-ink: #3A2A00; --lucro: #0E9F6E; --good-ink: #0B7A55;
+  --shadow: 0 1px 2px rgba(16,24,40,.05), 0 8px 24px -12px rgba(16,24,40,.18);
+  --raio: 16px;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+  --display: ui-rounded, "SF Pro Rounded", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    --bg: #0D1320; --surface: #151D2E; --surface-2: #1C2639; --border: #26324A;
+    --text: #EAF0FA; --text-2: #A9B6CC; --text-3: #6F7D96;
+    --accent: #5B8CFF; --accent-soft: #1A2A55; --band: #2B4690; --good-ink: #3DDC97; --lucro: #3DDC97;
+    --shadow: 0 1px 0 rgba(255,255,255,.03), 0 12px 28px -16px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1320; --surface: #151D2E; --surface-2: #1C2639; --border: #26324A;
+  --text: #EAF0FA; --text-2: #A9B6CC; --text-3: #6F7D96;
+  --accent: #5B8CFF; --accent-soft: #1A2A55; --band: #2B4690; --good-ink: #3DDC97; --lucro: #3DDC97;
+  --shadow: 0 1px 0 rgba(255,255,255,.03), 0 12px 28px -16px rgba(0,0,0,.6);
+}
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: -0.005em; }
+h1, h2, h3, .preco, .tile .val { font-family: var(--display); }
+h1 { font-weight: 800; letter-spacing: -0.03em; font-size: 24px; }
+h2 { font-weight: 800; letter-spacing: -0.02em; font-size: 19px; margin-top: 28px; }
+.preco, .tile .val, td.num, .lucro, .num-mono { font-variant-numeric: tabular-nums; }
+.preco { font-weight: 800; letter-spacing: -0.02em; }
+.card { border-radius: var(--raio); border-color: var(--border); transition: transform .18s ease, box-shadow .18s ease; }
+.card:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(16,24,40,.06), 0 18px 36px -18px rgba(16,24,40,.35); }
+.foto { background: linear-gradient(135deg, var(--surface-2), var(--accent-soft)); }
+.tile { border-radius: var(--raio); border: 0; box-shadow: var(--shadow); }
+.btn { border-radius: 10px; font-weight: 600; }
+.btn.primario { box-shadow: 0 6px 16px -8px var(--accent); text-decoration: none; }
+a.btn { text-decoration: none; }
+nav { backdrop-filter: saturate(1.4) blur(10px); background: color-mix(in srgb, var(--bg) 82%, transparent); }
+nav button { border-radius: 999px; font-weight: 600; }
+nav button[aria-selected="true"] { background: var(--text); color: var(--bg); box-shadow: none; }
+nav button[aria-selected="true"] .cont { background: var(--tag); color: var(--tag-ink); }
+.pill { border-radius: 999px; }
+.resumo-ia { border-radius: 12px; border-left: 3px solid var(--accent); }
+table { border-radius: var(--raio); box-shadow: var(--shadow); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) { .card, .card:hover { transition: none; transform: none; } }
+
+/* Assinatura: etiqueta de preço com furinho e barbante */
+.etiqueta { position: relative; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono);
+  font-weight: 800; font-size: 14px; color: var(--tag-ink); background: var(--tag); padding: 6px 12px 6px 22px;
+  clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 50%); transform: rotate(-2deg);
+  -webkit-mask: radial-gradient(circle 4px at 13px 50%, transparent 98%, #000 100%);
+          mask: radial-gradient(circle 4px at 13px 50%, transparent 98%, #000 100%); }
+.etiqueta small { font-weight: 600; opacity: .75; font-size: 12px; }
+.etiqueta.grande { font-size: 22px; padding: 10px 18px 10px 30px; clip-path: polygon(18px 0, 100% 0, 100% 100%, 18px 100%, 0 50%);
+  -webkit-mask: radial-gradient(circle 6px at 19px 50%, transparent 98%, #000 100%);
+          mask: radial-gradient(circle 6px at 19px 50%, transparent 98%, #000 100%); }
+.foto .etiqueta { position: absolute; right: 10px; bottom: 12px; }
+
+/* Topo */
+header .marca { display: flex; align-items: baseline; gap: 10px; }
+header .marca small { font-family: var(--mono); color: var(--text-3); font-size: 12px; }
+
+/* Aba Hoje */
+.hoje { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; align-items: stretch; }
+.hoje .frase { background: var(--surface); border-radius: 22px; padding: 26px 28px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+.hoje .frase h2 { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.08; margin: 0 0 14px; letter-spacing: -0.035em; }
+.hoje .frase h2 em { font-style: normal; background: linear-gradient(transparent 62%, var(--tag) 62%); }
+.hoje .frase p { color: var(--text-2); margin: 0 0 16px; max-width: 46ch; }
+.hoje .lado { display: grid; gap: 12px; }
+.linha-resumo { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface);
+  border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); cursor: pointer; border: 1px solid transparent; }
+.linha-resumo:hover { border-color: var(--accent); }
+.linha-resumo .rot { font-weight: 700; }
+.linha-resumo .det { color: var(--text-2); font-size: 13px; }
+.linha-resumo .val { font-family: var(--mono); font-weight: 800; font-size: 18px; }
+.mini-lista { display: grid; gap: 8px; margin-top: 4px; }
+.mini-item { display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center; padding: 8px; border-radius: 12px; background: var(--surface-2); text-decoration: none; color: var(--text); }
+.mini-item img, .mini-item .ico { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: var(--accent-soft); display: grid; place-items: center; font-size: 24px; }
+.mini-item .t { font-weight: 600; font-size: 14px; line-height: 1.25; }
+.mini-item .s { font-size: 12px; color: var(--text-2); }
+@media (max-width: 860px) { .hoje { grid-template-columns: 1fr; } }
+
+/* Leilões */
+.conta { font-family: var(--mono); font-size: 13px; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; background: var(--surface-2); border-radius: 12px; padding: 10px 12px; }
+.conta .tot { border-top: 1px dashed var(--border); padding-top: 4px; font-weight: 800; }
+.conta .neg { color: var(--text-2); }
+.tipo-lote { font-weight: 700; }
+.guia { background: var(--surface); border-radius: var(--raio); box-shadow: var(--shadow); padding: 6px 18px 14px; margin-top: 18px; }
+.guia h3 { margin: 16px 0 6px; font-size: 15px; }
+.guia p, .guia li { color: var(--text-2); font-size: 14px; }
+.lucro.neg { color: var(--critical); }
+@media (max-width: 640px) { .tiles { display: none; } header .marca small { display: none; } h1 { font-size: 22px; }
+  .mini-item { grid-template-columns: 44px 1fr; } .mini-item img, .mini-item .ico { width: 44px; height: 44px; }
+  .mini-item .etiqueta { grid-column: 2; justify-self: start; } .hoje .frase { padding: 20px; } }
 </style>
 </head>
 <body>
 <header>
   <div class="topo">
-    <h1>📦 Revenda RJ</h1>
+    <div class="marca"><h1>Revenda RJ</h1><small>caderno de achados · Rio e Niterói</small></div>
     <span class="sub" id="atualizado"></span>
     <span style="flex:1"></span>
     <button class="btn" id="tema" title="Alternar tema claro/escuro">🌓</button>
@@ -133,7 +232,7 @@ window.addEventListener("beforeunload", () => { estado.ultimaVisita = new Date()
 // ---------------------------------------------------------------- utilidades
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const urlSegura = u => (typeof u === "string" && /^https?:\/\//i.test(u)) ? esc(u) : "#";
-const brl = v => v == null ? "—" : "R$ " + Math.round(v).toLocaleString("pt-BR");
+const brl = v => v == null ? "—" : (v < 0 ? "−R$ " : "R$ ") + Math.abs(Math.round(v)).toLocaleString("pt-BR");
 const pct = v => v == null ? "—" : (v > 0 ? "+" : "") + Math.round(v) + "%";
 function ha(iso) {
   if (!iso) return "";
@@ -234,7 +333,8 @@ function fotoHtml(a, exemplo = false) {
     ? `<img src="${urlSegura(imgs[0])}" alt="Foto do anúncio: ${esc(a.titulo)}" loading="lazy" referrerpolicy="no-referrer" ${imgFallback(a.categoria)}>`
     : `<span class="sem">${ICONE[a.categoria] || "📦"}</span>`;
   const nav = imgs.length > 1 ? `<div class="nav-foto"><button data-foto="-1" data-id="${a.id}" aria-label="Foto anterior">‹</button><button data-foto="1" data-id="${a.id}" aria-label="Próxima foto">›</button></div>` : "";
-  return `<div class="foto" data-idx="0">${img}<div class="selo">${selos.join("")}</div>${nav}</div>`;
+  const tag = a.lucro > 0 && a.situacao !== "descartado" ? `<span class="etiqueta">+${brl(a.lucro)}</span>` : "";
+  return `<div class="foto" data-idx="0">${img}<div class="selo">${selos.join("")}</div>${tag}${nav}</div>`;
 }
 
 function cardAnuncio(a, exemplo = false) {
@@ -276,7 +376,7 @@ function cardAnuncio(a, exemplo = false) {
       <h3><a ${linkAnuncio}>${esc(a.titulo)}</a></h3>
       <div class="precos"><span class="preco">${brl(a.preco)}</span>
         ${a.preco_inicial && a.preco < a.preco_inicial ? `<span class="riscado">${brl(a.preco_inicial)}</span>` : ""}
-        ${a.lucro != null ? `<span class="lucro">${a.lucro >= 0 ? "+" : ""}${brl(a.lucro)} (${pct(a.margem)})</span>` : ""}</div>
+        ${a.lucro != null ? `<span class="lucro ${a.lucro < 0 ? "neg" : ""}">${a.lucro >= 0 ? "+" : ""}${brl(a.lucro)} (${pct(a.margem)})</span>` : ""}</div>
       <div class="muted">${refTxt}</div>
       ${faixaPreco(refFaixa, a.preco)}
       <div class="muted">📍 ${esc(a.bairro || "bairro ?")}${(a.zona || a.cidade) && (a.zona || a.cidade) !== a.bairro ? " · " + esc(a.zona || a.cidade) : ""}${(a.publicado_em || a.primeiro_visto) ? " · " + ha(a.publicado_em || a.primeiro_visto) : ""}</div>
@@ -538,19 +638,157 @@ function renderAnaliseOlx() {
   return html + `<details style="margin-top:16px"><summary>📥 Reinstalar o favorito</summary>${blocoInstalarFavorito()}</details>`;
 }
 
+
+// ---------------------------------------------------------------- leilões de carros
+const TIPO_LOTE = {recuperado_financiamento: "Recuperado de financiamento", sinistro_pequena_monta: "Sinistro · pequena monta",
+  sinistro_media_monta: "Sinistro · média monta", sinistro_grande_monta: "Sinistro · grande monta (só peças)", sucata: "Sucata (só peças)", outro: "Outro"};
+const SIT_LOTE = {lucro: ["Dá lucro", "var(--good)"], apertado: ["Margem apertada", "var(--warning)"], sem_fipe: ["Sem FIPE para comparar", "var(--text-3)"],
+  acima_orcamento: ["Acima do seu lance máximo", "var(--text-3)"], prejuizo: ["Prejuízo provável", "var(--critical)"], pecas: ["Só para peças", "var(--critical)"]};
+function contaLoteJs(l, cfg) {
+  const lance = l.lance_atual, comissao = lance * cfg.comissao_leiloeiro_pct / 100, custos = cfg.custos_fixos_reais, reparo = l.reparo_estimado || 0;
+  const total = lance + comissao + custos + reparo;
+  const desagio = (cfg.desagio_revenda_pct || {})[l.tipo] ?? 20;
+  const revenda = l.valor_fipe ? l.valor_fipe * (1 - desagio / 100) : null;
+  const lucro = revenda != null ? revenda - total : null;
+  const lmax = revenda != null ? Math.round(((revenda / (1 + cfg.margem_min_pct / 100)) - custos - reparo) / (1 + cfg.comissao_leiloeiro_pct / 100) / 100) * 100 : null;
+  return {lance, comissao, custos, reparo, total, fipe: l.valor_fipe, desagio_pct: desagio, revenda, lucro, margem: lucro != null ? lucro / total * 100 : null, lance_maximo_lucrativo: lmax};
+}
+const CFG_LEIL = () => ({comissao_leiloeiro_pct: 5, custos_fixos_reais: 2500, margem_min_pct: 15, lance_max: 50000,
+  desagio_revenda_pct: {recuperado_financiamento: 12, sinistro_pequena_monta: 25, sinistro_media_monta: 35, outro: 20}, ...(DADOS.leiloes?.config || {})});
+const EXEMPLO_LOTES = [
+  {titulo: "CHEVROLET ONIX 1.0 LT 2021", marca_modelo: "Chevrolet Onix 1.0 LT", ano: 2021, km: 48000, tipo: "recuperado_financiamento",
+   condicao: "Liga e anda, com chave, pintura com riscos leves", lance_atual: 38000, valor_fipe: 66000, fipe_fonte: "tabela FIPE", reparo_estimado: 1200,
+   data_leilao: "", local: "Duque de Caxias/RJ", leiloeiro: "Copart", dominio: "copart.com.br", alertas: ["Conferir débitos de IPVA no edital"]},
+  {titulo: "HYUNDAI HB20 1.0 SENSE 2022 - PEQUENA MONTA", marca_modelo: "Hyundai HB20 1.0 Sense", ano: 2022, km: 31000, tipo: "sinistro_pequena_monta",
+   condicao: "Avaria dianteira leve, airbags intactos, liga", lance_atual: 41000, valor_fipe: 72000, fipe_fonte: "site do leiloeiro", reparo_estimado: 4500,
+   data_leilao: "", local: "Rio de Janeiro/RJ", leiloeiro: "Sodré Santoro", dominio: "sodresantoro.com.br", alertas: ["Média de 25% abaixo da FIPE na revenda por ser sinistro"]},
+  {titulo: "FIAT ARGO DRIVE 1.3 2020 - MÉDIA MONTA", marca_modelo: "Fiat Argo Drive 1.3", ano: 2020, km: 62000, tipo: "sinistro_media_monta",
+   condicao: "Batida lateral, não liga, sem chave", lance_atual: 33000, valor_fipe: 70000, fipe_fonte: "tabela FIPE", reparo_estimado: 9000,
+   data_leilao: "", local: "São João de Meriti/RJ", leiloeiro: "Freitas Leiloeiro", dominio: "freitasleiloeiro.com.br", alertas: ["Sem chave", "Não liga: risco de motor"]},
+];
+EXEMPLO_LOTES.forEach((l, i) => { l.id = "ex-lote-" + i; l.data_leilao = new Date(Date.now() + (3 + i * 2) * 864e5).toISOString().slice(0, 10); });
+
+function situacaoLote(l, c, cfg) {
+  if (["sinistro_grande_monta", "sucata"].includes(l.tipo)) return "pecas";
+  if (c.margem == null) return "sem_fipe";
+  if (c.lance > cfg.lance_max) return "acima_orcamento";
+  if (c.margem >= cfg.margem_min_pct) return "lucro";
+  return c.margem > 0 ? "apertado" : "prejuizo";
+}
+
+function cardLote(l, exemplo = false) {
+  const cfg = CFG_LEIL();
+  const c = exemplo ? contaLoteJs(l, cfg) : l.conta;
+  const sit = exemplo ? situacaoLote(l, c, cfg) : l.situacao;
+  const [rotSit, corSit] = SIT_LOTE[sit] || ["", "var(--text-3)"];
+  const link = exemplo ? `href="#" data-exemplo-link` : `href="${urlSegura(l.url)}" target="_blank" rel="noopener"`;
+  const dias = l.data_leilao ? Math.ceil((new Date(l.data_leilao + "T12:00:00") - Date.now()) / 864e5) : null;
+  const quando = l.data_leilao ? `${diaMes(l.data_leilao.slice(0, 10))}${dias != null && dias >= 0 ? ` · ${dias === 0 ? "hoje" : dias === 1 ? "amanhã" : "em " + dias + " dias"}` : ""}` : "data a confirmar";
+  return `<article class="card ${exemplo ? "exemplo" : ""}">
+    <div class="foto" style="aspect-ratio: 2 / 1; padding-top: 28px"><span class="sem">🚗</span>
+      <div class="selo">${exemplo ? SELO_EXEMPLO : ""}<span class="pill"><span class="dot" style="background:${corSit}"></span>${rotSit}</span></div>
+      ${c.lucro > 0 ? `<span class="etiqueta">+${brl(c.lucro)}</span>` : ""}</div>
+    <div class="corpo">
+      <h3><a ${link}>${esc(l.marca_modelo || l.titulo)}</a></h3>
+      <div class="muted">${l.ano || "ano ?"} · ${l.km != null ? Number(l.km).toLocaleString("pt-BR") + " km" : "km ?"} · <span class="tipo-lote">${esc(TIPO_LOTE[l.tipo] || l.tipo)}</span></div>
+      <div class="precos"><span class="preco">${brl(c.lance)}</span><span class="muted">lance atual</span>${c.margem != null ? `<span class="lucro ${c.margem < 0 ? "neg" : ""}">${pct(c.margem)}</span>` : ""}</div>
+      <div class="conta">
+        <span class="neg">lance</span><span>${brl(c.lance)}</span>
+        <span class="neg">comissão ${cfg.comissao_leiloeiro_pct}%</span><span>${brl(c.comissao)}</span>
+        <span class="neg">pátio, despachante, laudo</span><span>${brl(c.custos)}</span>
+        <span class="neg">reparo estimado</span><span>${brl(c.reparo)}</span>
+        <span class="tot">custo total</span><span class="tot">${brl(c.total)}</span>
+        <span class="neg">FIPE ${c.fipe ? "" : "(não achada)"}</span><span>${brl(c.fipe)}</span>
+        <span class="neg">revenda (FIPE −${c.desagio_pct}%)</span><span>${brl(c.revenda)}</span>
+        <span class="tot">lucro estimado</span><span class="tot">${c.lucro != null ? (c.lucro >= 0 ? "+" : "") + brl(c.lucro) : "—"}</span>
+      </div>
+      ${c.lance_maximo_lucrativo ? `<div class="mini">🎯 Para lucrar ${cfg.margem_min_pct}%, não passe de <b>${brl(c.lance_maximo_lucrativo)}</b> de lance.</div>` : ""}
+      ${l.condicao ? `<div class="mini">🔧 ${esc(l.condicao)}</div>` : ""}
+      ${(l.alertas || []).length ? `<details><summary>⚠️ Atenção (${l.alertas.length})</summary><ul>${l.alertas.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
+      <div class="mini">📅 ${quando} · 📍 ${esc(l.local || "?")} · ${esc(l.leiloeiro || l.dominio)}${l.fipe_fonte ? " · FIPE: " + esc(l.fipe_fonte) : ""}</div>
+      <div class="acoes"><a class="btn primario" ${link}>Ver lote no leiloeiro ↗</a></div>
+    </div></article>`;
+}
+
+function guiaLeilao() {
+  const cfg = CFG_LEIL();
+  return `<details class="guia" ${estado.guiaAberto ? "open" : ""} data-guia><summary><h2 style="display:inline">📘 Como ganhar dinheiro com carro de leilão</h2></summary>
+    <h3>O que costuma dar lucro</h3>
+    <ul><li><b>Recuperado de financiamento</b> é o melhor tipo: carro tomado por falta de pagamento, normalmente sem batida. Revende uns ${cfg.desagio_revenda_pct.recuperado_financiamento}% abaixo da FIPE.</li>
+    <li><b>Sinistro de pequena monta</b>: batida leve, volta a circular depois de vistoria. Revende uns ${cfg.desagio_revenda_pct.sinistro_pequena_monta}% abaixo da FIPE, porque o histórico de leilão aparece na consulta do chassi.</li>
+    <li><b>Média monta</b> exige reparo com laudo e inspeção de segurança (CSV) para voltar a rodar; dá lucro só com lance bem baixo. <b>Grande monta e sucata</b> não voltam a circular: só peças.</li>
+    <li><b>Modelos populares</b> (Onix, HB20, Argo, Gol, Polo, Strada, Corolla, Compass…) vendem rápido mesmo com histórico de leilão. Carro raro ou de luxo encalha.</li></ul>
+    <h3>A conta que o painel faz</h3>
+    <p>Custo total = lance + comissão do leiloeiro (${cfg.comissao_leiloeiro_pct}%) + pátio, despachante, transferência e laudo (~${brl(cfg.custos_fixos_reais)}) + reparo estimado. Revenda = FIPE menos o deságio do tipo de lote. Só aparece como "dá lucro" com margem de ${cfg.margem_min_pct}% ou mais. Ajuste esses números em <code>config/regras.yaml</code> → <code>leiloes</code>.</p>
+    <h3>Antes de dar lance</h3>
+    <ul><li>Leia o <b>edital</b> do lote: débitos (IPVA, multas) podem ser seus; prazo de retirada; taxa de pátio por dia.</li>
+    <li><b>Visite o pátio</b> na visitação. Se não der, considere o pior caso no reparo.</li>
+    <li>Defina o <b>lance máximo</b> (o card mostra) e não passe dele no calor do pregão.</li>
+    <li>Leiloeiro de verdade tem <b>matrícula na Junta Comercial</b> (JUCERJA/JUCESP). Desconfie de site novo, preço muito baixo ou pagamento por PIX para pessoa física. O robô só aceita links dos leiloeiros da lista.</li>
+    <li>Na revenda, seja transparente sobre o histórico de leilão e tenha o <b>laudo cautelar</b> em mãos: vende mais rápido e evita problema.</li></ul>
+  </details>`;
+}
+
+function renderLeiloes() {
+  const L = DADOS.leiloes || {lotes: [], config: {}};
+  const reais = L.lotes.length > 0;
+  const ex = mostrarExemplo("leiloes", reais);
+  const cfg = CFG_LEIL();
+  let html = `<div class="filtros"><p class="muted" style="flex:1;margin:0">Carros em leilão nos leiloeiros conhecidos (Copart, Sodré Santoro, Freitas, VIP, Mega Leilões, Superbid…), pesquisados 1 vez por dia, com a conta completa até o lucro. Lance máximo configurado: <b>${brl(cfg.lance_max)}</b>.</p>${botaoExemplo("leiloes", ex)}</div>`;
+  if (ex) html += avisoExemplo(reais ? "Assim fica um lote analisado." : "Os lotes reais aparecem aqui depois da primeira pesquisa de leilões.")
+    + `<div class="grade">${EXEMPLO_LOTES.map(l => cardLote(l, true)).join("")}</div><h2>Lotes encontrados</h2>`;
+  html += reais ? `<div class="grade">${L.lotes.map(l => cardLote(l)).join("")}</div>`
+    : `<div class="vazio">${L.ultima ? `Nenhum lote encontrado na última pesquisa (${ha(L.ultima.pesquisado_em)})${L.ultima.erro ? ": " + esc(L.ultima.erro) : ""}.` : "A primeira pesquisa de leilões acontece na próxima execução do robô."}</div>`;
+  if (L.ultima?.resumo) html += `<div class="resumo-ia" style="margin-top:12px">🤖 ${esc(L.ultima.resumo)}</div>`;
+  return html + guiaLeilao();
+}
+
+// ---------------------------------------------------------------- aba Hoje
+function renderHoje() {
+  const opp = DADOS.anuncios.filter(a => a.situacao === "oportunidade").map(a => ({t: a.titulo, s: `${a.bairro || ""} · OLX`, lucro: a.lucro, img: a.imagens?.[0], cat: a.categoria, aba: "oportunidades"}));
+  const olx = IMPORTADOS.filter(a => a.situacao === "oportunidade").map(a => ({t: a.titulo, s: `${a.bairro || ""} · trazido da OLX`, lucro: a.lucro, img: a.imagens?.[0], cat: a.categoria, aba: "olx"}));
+  const promo = (DADOS.promocoes?.achados || []).map(p => ({t: p.titulo, s: `${p.loja} · promoção`, lucro: p.lucro, cat: p.categoria, aba: "promocoes"}));
+  const lotes = (DADOS.leiloes?.lotes || []).filter(l => l.situacao === "lucro").map(l => ({t: l.marca_modelo || l.titulo, s: `${l.leiloeiro} · leilão`, lucro: l.conta.lucro, ico: "🚗", aba: "leiloes"}));
+  const todos = [...opp, ...olx, ...promo, ...lotes].filter(x => x.lucro > 0).sort((a, b) => b.lucro - a.lucro);
+  const melhor = todos[0];
+  const rotas = DADOS.passagens.filter(r => r.ultima?.voos?.length).map(r => ({r, p: Math.min(...r.ultima.voos.map(v => v.preco))}));
+  const rotaBoa = rotas.find(x => x.r.preco_alvo && x.p <= x.r.preco_alvo);
+  const mes = new Date().toISOString().slice(0, 7);
+  const gasto = DADOS.execucoes.filter(e => (e.inicio || "").startsWith(mes)).reduce((s, e) => s + (e.custo || 0), 0);
+  const n = todos.length;
+  const frase = n
+    ? `<h2>Hoje ${n === 1 ? "tem <em>1 achado</em> que paga" : `tem <em>${n} achados</em> que pagam`} a ida.</h2><p>O melhor rende <b>${brl(melhor.lucro)}</b> estimados: ${esc(melhor.t)}.</p><span class="etiqueta grande">+${brl(todos.reduce((s, x) => s + x.lucro, 0))} <small>em jogo</small></span>`
+    : `<h2>Nenhum achado bom <em>por enquanto</em>.</h2><p>Abra uma busca pronta na OLX e use o favorito, ou confira as promoções e os leilões. O robô procura de novo a cada 2 horas.</p><button class="btn primario" data-aba="olx">🔎 Garimpar na OLX</button>`;
+  const buscas = !todos.length ? (DADOS.promocoes?.tetos || []).slice(0, 5).map(t => `<a class="mini-item" href="${urlSegura(linkOlx(t.busca, t.teto))}" target="_blank" rel="noopener"><span class="ico">${ICONE[t.categoria] || "📦"}</span><span><span class="t">${esc(t.nome)}</span><br><span class="s">busca pronta na OLX · revende por ~${brl(t.mediana)}</span></span><span class="etiqueta">até ${brl(t.teto)}</span></a>`).join("") : "";
+  const lista = todos.slice(0, 5).map(x => `<a class="mini-item" href="#${x.aba}" data-aba="${x.aba}">${x.img ? `<img src="${urlSegura(x.img)}" alt="" referrerpolicy="no-referrer" ${imgFallback(x.cat)}>` : `<span class="ico">${x.ico || ICONE[x.cat] || "📦"}</span>`}<span><span class="t">${esc(x.t)}</span><br><span class="s">${esc(x.s)}</span></span><span class="etiqueta">+${brl(x.lucro)}</span></a>`).join("");
+  const linha = (aba, rot, det, val) => `<div class="linha-resumo" data-aba="${aba}" role="button" tabindex="0"><span><span class="rot">${rot}</span><br><span class="det">${det}</span></span><span class="val">${val}</span></div>`;
+  return `<div class="hoje">
+    <div class="frase">${frase}${lista ? `<div class="mini-lista" style="margin-top:18px">${lista}</div>` : ""}${buscas ? `<h3 style="margin:22px 0 8px">Comece por estas buscas na OLX</h3><div class="mini-lista">${buscas}</div>` : ""}</div>
+    <div class="lado">
+      ${linha("oportunidades", "🔔 Oportunidades", "anúncios abaixo do mercado", opp.length)}
+      ${linha("olx", "🔎 Análise OLX", IMPORTADOS.length ? `${IMPORTADOS.length} anúncios trazidos` : "use o favorito numa busca", olx.length)}
+      ${linha("promocoes", "🛒 Promoções em lojas", "produto novo que dá lucro", promo.length)}
+      ${linha("leiloes", "🚗 Leilões de carros", `${(DADOS.leiloes?.lotes || []).length} lotes analisados`, lotes.length)}
+      ${linha("passagens", "✈️ Passagens", rotaBoa ? `${esc(rotaBoa.r.nome)} abaixo do alvo` : "nenhuma rota abaixo do alvo", rotas.length ? brl(Math.min(...rotas.map(x => x.p))) : "—")}
+      ${linha("execucoes", "⚙️ Gasto com IA no mês", `teto definido em regras.yaml`, "US$ " + gasto.toFixed(2))}
+    </div></div>`;
+}
+
 // ---------------------------------------------------------------- abas
 const ops = () => Object.entries(estado.status).filter(([, v]) => v.estado === "comprei" || v.estado === "vendi");
 const ABAS = [
+  {id: "hoje", rot: "🏠 Hoje"},
   {id: "oportunidades", rot: "🔔 Oportunidades", cont: () => DADOS.anuncios.filter(a => a.situacao === "oportunidade").length},
   {id: "observacao", rot: "👀 Em observação", cont: () => DADOS.anuncios.filter(a => a.situacao === "observacao").length},
   {id: "olx", rot: "🔎 Análise OLX", cont: () => IMPORTADOS.filter(a => a.situacao === "oportunidade").length},
   {id: "promocoes", rot: "🛒 Promoções em lojas", cont: () => (DADOS.promocoes?.achados || []).length},
   {id: "produtos", rot: "📦 Produtos", cont: () => DADOS.produtos.length},
+  {id: "leiloes", rot: "🚗 Leilões", cont: () => (DADOS.leiloes?.lotes || []).filter(l => l.situacao === "lucro").length},
   {id: "passagens", rot: "✈️ Passagens", cont: () => DADOS.passagens.length},
   {id: "operacoes", rot: "💰 Minhas operações", cont: () => ops().length},
   {id: "execucoes", rot: "⚙️ Execuções"},
 ];
-let abaAtual = location.hash.slice(1) || estado.aba || "oportunidades";
+let abaAtual = location.hash.slice(1) || estado.aba || "hoje";
 
 function renderAbas() {
   document.getElementById("abas").innerHTML = ABAS.map(a =>
@@ -750,7 +988,7 @@ function cardPromo(p, exemplo = false) {
   const link = exemplo ? `href="#" data-exemplo-link` : `href="${urlSegura(p.url)}" target="_blank" rel="noopener"`;
   return `<article class="card ${exemplo ? "exemplo" : ""} ${st === "descartado" ? "apagado" : ""}">
     <div class="foto" style="aspect-ratio: 2 / 1; padding-top: 28px"><span class="sem">${ICONE[p.categoria] || "📦"}</span>
-      <div class="selo">${exemplo ? SELO_EXEMPLO : ""}<span class="pill">🔥 ${pct(p.margem)}</span><span class="pill">🛡️ ${esc(p.dominio)}</span></div></div>
+      <div class="selo">${exemplo ? SELO_EXEMPLO : ""}<span class="pill">🔥 ${pct(p.margem)}</span><span class="pill">🛡️ ${esc(p.dominio)}</span></div><span class="etiqueta">+${brl(p.lucro)}</span></div>
     <div class="corpo">
       <h3><a ${link}>${esc(p.titulo)}</a></h3>
       <div class="precos"><span class="preco">${brl(p.preco)}</span><span class="lucro">+${brl(p.lucro)} (${pct(p.margem)})</span></div>
@@ -817,14 +1055,17 @@ function renderExecucoes() {
       <td>${e.erros.length ? `<details><summary>${e.erros.length} erro(s)</summary><ul>${e.erros.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>` : "—"}</td></tr>`).join("") + `</tbody></table>`;
 }
 
+document.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches(".linha-resumo")) { e.preventDefault(); e.target.click(); } });
+document.addEventListener("toggle", e => { if (e.target.matches?.("[data-guia]")) { estado.guiaAberto = e.target.open; salvar(); } }, true);
 function render() {
   renderAbas();
+  document.getElementById("tiles").classList.toggle("oculto", abaAtual === "hoje");
   estado.aba = abaAtual; salvar();
   const el = document.getElementById("conteudo");
   el.innerHTML = {
     oportunidades: () => renderListaAnuncios("oportunidade", `Anúncios com margem estimada de pelo menos ${DADOS.regras.margem_min_pct}% e lucro de pelo menos ${brl(DADOS.regras.lucro_min_reais)} sobre a mediana do mercado, já descontados ${DADOS.regras.desconto_negociacao_pct}% de negociação na revenda e ${brl(DADOS.regras.custo_fixo_reais)} de custos.`),
     observacao: () => renderListaAnuncios("observacao", "Quase lá: margem entre a metade e o alvo, ou produtos ainda com poucos anúncios para comparar. Bons para negociar ou acompanhar se o preço cai."),
-    olx: renderAnaliseOlx, promocoes: renderPromocoes, produtos: renderProdutos, passagens: renderPassagens, operacoes: renderOperacoes, execucoes: renderExecucoes,
+    hoje: renderHoje, leiloes: renderLeiloes, olx: renderAnaliseOlx, promocoes: renderPromocoes, produtos: renderProdutos, passagens: renderPassagens, operacoes: renderOperacoes, execucoes: renderExecucoes,
   }[abaAtual]?.() ?? "";
 }
 
@@ -867,7 +1108,8 @@ document.addEventListener("click", e => {
     const aba = alt.dataset.alternarExemplo;
     const tem = {produtos: DADOS.produtos.some(p => p.ref || p.novo), passagens: DADOS.passagens.some(r => r.ultima),
                  oportunidades: DADOS.anuncios.some(a => a.situacao === "oportunidade"),
-                 promocoes: (DADOS.promocoes?.achados || []).length > 0}[aba];
+                 promocoes: (DADOS.promocoes?.achados || []).length > 0,
+                 leiloes: (DADOS.leiloes?.lotes || []).length > 0}[aba];
     const atual = mostrarExemplo(aba, tem);
     estado.exemplos[aba] = !atual; salvar(); render(); return;
   }

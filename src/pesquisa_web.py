@@ -194,6 +194,21 @@ class PesquisadorWeb:
         return self._pesquisar(pedido, schema_promocoes([t["id"] for t in tetos]),
                                "Registra as promoções encontradas abaixo do teto.", dominios)
 
+    def leiloes(self, cfg: dict[str, Any], hoje: str):
+        sites = list(cfg.get("sites") or [])
+        pedido = (
+            f"Hoje é {hoje}. Procure LOTES DE CARROS (automóveis de passeio e utilitários leves) em leilões que "
+            f"acontecem nos próximos 15 dias ou estão com lances abertos, nos sites de leiloeiros: {', '.join(sites)}. "
+            f"Região: {cfg.get('regiao', 'Rio de Janeiro')}. Lance até R$ {float(cfg.get('lance_max', 50000)):.0f}. "
+            "Prefira lotes com mais chance de lucro na revenda: recuperados de financiamento, sinistro de pequena "
+            "monta, modelos populares de alta liquidez (Onix, HB20, Argo, Gol, Polo, Kwid, Mobi, Strada, Toro, "
+            "Compass, Corolla, Civic, T-Cross, Creta, Renegade, Saveiro). Para cada lote informe o valor FIPE "
+            "(do site do leiloeiro ou da tabela FIPE) e uma estimativa conservadora de reparo. Não inclua motos, "
+            "caminhões, máquinas nem imóveis."
+        )
+        dominios = sites + list(cfg.get("sites_consulta") or [])
+        return self._pesquisar(pedido, SCHEMA_LEILOES, "Registra os lotes de carros encontrados.", dominios)
+
 
 # ---------------------------------------------------------------------------- promoções
 def schema_promocoes(ids_produtos: list[str]) -> dict[str, Any]:
@@ -225,3 +240,44 @@ def schema_promocoes(ids_produtos: list[str]) -> dict[str, Any]:
         },
         "required": ["achados", "resumo"],
     }
+
+
+# ---------------------------------------------------------------------------- leilões de carros
+TIPOS_LOTE = ["recuperado_financiamento", "sinistro_pequena_monta", "sinistro_media_monta",
+              "sinistro_grande_monta", "sucata", "outro"]
+
+SCHEMA_LEILOES = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "lotes": {
+            "type": "array",
+            "description": "Até 12 lotes de CARROS com leilão nos próximos 15 dias ou em andamento. Lista vazia se nada achar.",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "titulo": {"type": "string", "description": "Como o lote aparece no site."},
+                    "marca_modelo": {"type": "string", "description": "Ex.: 'Fiat Argo Drive 1.0'."},
+                    "ano": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+                    "km": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+                    "tipo": {"type": "string", "enum": TIPOS_LOTE},
+                    "condicao": {"type": "string", "description": "Resumo do estado: monta, se liga/anda, chave, avarias, documentação. Vazio se não informado."},
+                    "lance_atual": {"type": "number", "description": "Lance atual ou lance inicial em reais."},
+                    "valor_fipe": {"anyOf": [{"type": "number"}, {"type": "null"}], "description": "Valor FIPE do modelo/ano, do site do lote ou da tabela FIPE. null se não achar."},
+                    "fipe_fonte": {"type": "string", "description": "'site do leiloeiro', 'tabela FIPE' ou vazio."},
+                    "reparo_estimado": {"type": "number", "description": "Estimativa conservadora em reais do conserto/funilaria para revender (0 se não precisa)."},
+                    "data_leilao": {"type": "string", "description": "AAAA-MM-DD (e hora se houver). Vazio se não informado."},
+                    "local": {"type": "string", "description": "Cidade/UF do pátio."},
+                    "leiloeiro": {"type": "string"},
+                    "url": {"type": "string", "description": "Link do lote copiado de um resultado da busca."},
+                    "alertas": {"type": "array", "items": {"type": "string"}, "description": "Riscos: débitos, sem chave, motor não funciona, documento, restrição judicial..."},
+                },
+                "required": ["titulo", "marca_modelo", "ano", "km", "tipo", "condicao", "lance_atual", "valor_fipe",
+                             "fipe_fonte", "reparo_estimado", "data_leilao", "local", "leiloeiro", "url", "alertas"],
+            },
+        },
+        "resumo": {"type": "string", "description": "1-2 frases sobre os leilões encontrados."},
+    },
+    "required": ["lotes", "resumo"],
+}

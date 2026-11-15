@@ -209,8 +209,9 @@ class Robo:
                 s.add(PesquisaDB(tipo=tipo, alvo_id=alvo, pesquisado_em=quando, erro=str(exc)))
                 return
             self.uso.somar(uso)
-            lista = {"produto": dados.get("ofertas"), "passagem": dados.get("voos")}.get(tipo, dados.get("achados"))
-            precos = [o["preco"] for o in (lista or []) if o.get("preco")]
+            lista = {"produto": dados.get("ofertas"), "passagem": dados.get("voos"),
+                     "leiloes": dados.get("lotes")}.get(tipo, dados.get("achados"))
+            precos = [o.get("preco") or o.get("lance_atual") for o in (lista or []) if o.get("preco") or o.get("lance_atual")]
             s.add(PesquisaDB(tipo=tipo, alvo_id=alvo, pesquisado_em=quando,
                              melhor_preco=min(precos) if precos else None,
                              dados_json=json.dumps(dados, ensure_ascii=False), custo_usd=uso.custo_usd))
@@ -229,6 +230,13 @@ class Robo:
                 dominios = list(promo.get("lojas_confiaveis") or []) + list(promo.get("sites_de_promocao") or [])
                 hoje_ = quando.astimezone(timezone(timedelta(hours=-3))).date().isoformat()
                 registrar("promocoes", "geral", lambda: pesq_promo.promocoes(tetos, hoje_, dominios))
+
+        leil = self.regras.get("leiloes") or {}
+        if leil.get("ativa") and vencido("leiloes", "geral", timedelta(hours=float(leil.get("refazer_a_cada_horas", 20)))):
+            pesq_leil = PesquisadorWeb(self.client, pesq.modelo, cfg.get("effort", "low"),
+                                       int(leil.get("max_buscas_por_pesquisa", 4)), modelo_reserva=reserva)
+            hoje_l = quando.astimezone(timezone(timedelta(hours=-3))).date().isoformat()
+            registrar("leiloes", "geral", lambda: pesq_leil.leiloes(leil, hoje_l))
 
         pc = cfg.get("produtos") or {}
         intervalo = timedelta(days=float(pc.get("refazer_a_cada_dias", 3)))

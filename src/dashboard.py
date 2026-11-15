@@ -14,6 +14,7 @@ from .database import AnuncioDB, Database, agora, utc
 from .database import PesquisaDB
 from .precos import calcular_referencias, escolher_referencia
 from .promocoes import montar_achados, precos_de_revenda, tetos_de_compra
+from .leiloes import montar_lotes
 from .regiao import BAIRRO_PARA_ZONA
 
 TEMPLATE = Path(__file__).with_name("dashboard_template.html")
@@ -136,6 +137,21 @@ def montar_dados(db: Database, regras: dict, catalogo: Catalogo, passagens: dict
             "lojas": (regras.get("promocoes") or {}).get("lojas_confiaveis") or [],
         }
 
+        # Leilões de carros: pesquisas dos últimos 3 dias.
+        cfg_leil = regras.get("leiloes") or {}
+        pesq_leil = list(s.scalars(select(PesquisaDB).where(
+            PesquisaDB.tipo == "leiloes", PesquisaDB.erro.is_(None),
+            PesquisaDB.pesquisado_em >= (quando - timedelta(days=3)).replace(tzinfo=None))))
+        ultima_leil = db.ultima_pesquisa(s, "leiloes", "geral")
+        hoje_br = (quando - timedelta(hours=3)).date()
+        leiloes = {
+            "lotes": montar_lotes(pesq_leil, cfg_leil, hoje_br),
+            "ultima": ({"pesquisado_em": _iso(ultima_leil.pesquisado_em), "erro": ultima_leil.erro,
+                        "resumo": ultima_leil.dados.get("resumo")} if ultima_leil else None),
+            "config": {k: cfg_leil.get(k) for k in ("lance_max", "comissao_leiloeiro_pct", "custos_fixos_reais",
+                                                    "margem_min_pct", "desagio_revenda_pct", "sites", "regiao")},
+        }
+
         execucoes = [
             {"inicio": _iso(e.inicio), "fim": _iso(e.fim), "coletados": e.coletados, "novos": e.novos,
              "oportunidades": e.oportunidades, "novas": e.novas_oportunidades, "ia": e.analises_ia,
@@ -156,6 +172,7 @@ def montar_dados(db: Database, regras: dict, catalogo: Catalogo, passagens: dict
         "checklists": catalogo.checklists,
         "passagens": rotas,
         "promocoes": promocoes,
+        "leiloes": leiloes,
         # Para a "Análise OLX" (favorito): o painel classifica no navegador os anúncios que o usuário trouxe.
         "analise_olx": {
             "catalogo": [{"id": i.id, "nome": i.nome, "categoria": i.categoria, "padrao": i.padrao.pattern,
