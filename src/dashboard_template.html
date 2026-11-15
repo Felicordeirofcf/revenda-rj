@@ -144,6 +144,23 @@ function ha(iso) {
 }
 function diaMes(s) { const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(s || ""); return m ? (m[3] ? `${m[3]}/${m[2]}` : `${m[2]}/${m[1]}`) : s; }
 const imgFallback = cat => `onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sem',textContent:'${ICONE[cat] || "📦"}'}))"`;
+function linkOlx(busca, max) {
+  const modelo = DADOS.regras.busca_manual_olx || "https://www.olx.com.br/estado-rj/rio-de-janeiro-e-regiao?q={q}&pe={max}&sf=1";
+  return modelo.replace("{q}", encodeURIComponent(busca).replace(/%20/g, "+")).replace("{max}", Math.round(max));
+}
+const tetoPorId = () => Object.fromEntries((DADOS.promocoes?.tetos || []).map(t => [t.id, t]));
+function blocoBuscasOlx() {
+  const tetos = DADOS.promocoes?.tetos || [];
+  if (!tetos.length) return `<div class="aviso">🔎 As buscas prontas na OLX aparecem aqui assim que o robô souber quanto vale cada produto (o preço de usado vem da pesquisa web, alguns produtos por execução).</div>`;
+  return `<h2>🔎 Buscas prontas na OLX</h2>
+    <p class="muted">A OLX não permite robôs, então a busca é sua: cada botão abre a OLX do Rio já com o preço máximo que ainda dá ${DADOS.regras.margem_min_pct}% de lucro. Dica: no app da OLX, salve a busca e ative o <b>alerta</b> para ser avisado de anúncios novos.</p>
+    <div class="grade">${tetos.map(t => `<article class="card"><div class="corpo">
+      <h3>${ICONE[t.categoria] || "📦"} ${esc(t.nome)}</h3>
+      <div class="precos"><span class="preco">até ${brl(t.teto)}</span></div>
+      <div class="muted">revende por ~${brl(t.mediana)} (${t.fonte === "web" ? "preço típico de usado na web" : t.n + " anúncios"})</div>
+      <div class="acoes"><a class="btn primario" href="${urlSegura(linkOlx(t.busca, t.teto))}" target="_blank" rel="noopener">🔎 Buscar na OLX até ${brl(t.teto)} ↗</a></div>
+    </div></article>`).join("")}</div>`;
+}
 function dataBr(iso) { return iso ? new Date(iso).toLocaleString("pt-BR", {dateStyle: "short", timeStyle: "short"}) : "—"; }
 const ICONE = {celular: "📱", console: "🎮", tablet: "📲", relogio: "⌚", notebook: "💻", gpu: "🖥️", drone: "🛸"};
 const CAT_NOME = {celular: "Celulares", console: "Consoles", tablet: "Tablets", relogio: "Relógios", notebook: "Notebooks", gpu: "Placas de vídeo", drone: "Drones"};
@@ -338,6 +355,7 @@ function renderListaAnuncios(situacao, explicacao) {
   } else {
     html = `<p class="muted">${explicacao}</p>`;
   }
+  if (situacao === "oportunidade" && !DADOS.olx_ativa && !base.length) return html + blocoBuscasOlx();
   html += barraFiltros(base);
   html += lista.length ? `<div class="grade">${lista.map(cardAnuncio).join("")}</div>`
     : `<div class="vazio">Nada por aqui${base.length ? " com estes filtros" : " agora"}. O robô roda a cada 2 horas.</div>`;
@@ -440,7 +458,7 @@ function cardProduto(p, exemplo = false) {
           ${novo.preco_usado_tipico ? `<div class="mini">Usado típico na web: ${brl(novo.preco_usado_tipico)}</div>` : ""}
           ${novo.resumo ? `<div class="resumo-ia">🤖 ${esc(novo.resumo)}</div>` : ""}${teto}</div>`
         : `<div class="mini">🏬 Preço de novo: aguardando a pesquisa na web.</div>`}
-      ${exemplo ? "" : `<div class="acoes"><button class="btn" data-ver-produto="${p.id}">Ver anúncios deste produto</button></div>`}
+      ${exemplo ? "" : (() => { const t = tetoPorId()[p.id]; return `<div class="acoes">${t ? `<a class="btn primario" href="${urlSegura(linkOlx(t.busca, t.teto))}" target="_blank" rel="noopener">🔎 OLX até ${brl(t.teto)} ↗</a>` : ""}${DADOS.olx_ativa ? `<button class="btn" data-ver-produto="${p.id}">Ver anúncios deste produto</button>` : ""}</div>`; })()}
     </div></article>`;
 }
 
@@ -548,7 +566,7 @@ function renderPromocoes() {
     : `<div class="vazio">Nenhuma promoção que dê lucro agora. ${P.ultima ? `Última procura ${ha(P.ultima.pesquisado_em)}${P.ultima.erro ? " (falhou: " + esc(P.ultima.erro) + ")" : ""}.` : P.tetos.length ? "A primeira procura acontece na próxima execução." : "O robô precisa primeiro de preços de usados (após as primeiras execuções) para saber quanto vale cada produto."}</div>`;
   if (P.ultima?.resumo) html += `<div class="resumo-ia" style="margin-top:12px">🤖 ${esc(P.ultima.resumo)}</div>`;
   if (P.tetos.length) html += `<h2>🎯 O que o robô está procurando</h2><p class="muted">Preço máximo de compra para cada produto dar ${DADOS.regras.margem_min_pct}% de lucro e pelo menos ${brl(DADOS.regras.lucro_min_reais)}.</p>
-    <table><thead><tr><th>Produto</th><th class="num">Compre até</th><th class="num">Revende por ~</th><th class="num">Base do preço</th></tr></thead><tbody>${P.tetos.map(t => `<tr><td>${esc(t.nome)}</td><td class="num"><b>${brl(t.teto)}</b></td><td class="num">${brl(t.mediana)}</td><td class="num">${t.fonte === "web" ? "pesquisa web" : t.n + " anúncios OLX"}</td></tr>`).join("")}</tbody></table>`;
+    <table><thead><tr><th>Produto</th><th class="num">Compre até</th><th class="num">Revende por ~</th><th class="num">Base do preço</th><th></th></tr></thead><tbody>${P.tetos.map(t => `<tr><td>${esc(t.nome)}</td><td class="num"><b>${brl(t.teto)}</b></td><td class="num">${brl(t.mediana)}</td><td class="num">${t.fonte === "web" ? "pesquisa web" : t.n + " anúncios OLX"}</td><td><a class="btn" href="${urlSegura(linkOlx(t.busca, t.teto))}" target="_blank" rel="noopener">🔎 OLX ↗</a></td></tr>`).join("")}</tbody></table>`;
   html += `<h2>🛡️ Sites aceitos</h2><div class="chips">${P.lojas.map(l => `<span class="chip">${esc(l)}</span>`).join("")}</div><p class="mini">Edite a lista em <code>config/regras.yaml</code> (promocoes → lojas_confiaveis). Em marketplaces, prefira "vendido e entregue por" a própria loja ou loja oficial.</p>`;
   return html;
 }
@@ -603,7 +621,7 @@ function renderTopo() {
   const avisos = [];
   if ((Date.now() - ger) / 3600000 > 8) avisos.push("⏳ O painel não é atualizado há mais de 8 horas. Confira a aba Actions do repositório.");
   const ult = DADOS.execucoes[0];
-  if (ult && ult.erros.some(e => /bloque|403|anti-robô/i.test(e))) avisos.push(ult.coletados === 0
+  if (DADOS.olx_ativa && ult && ult.erros.some(e => /bloque|403|anti-robô/i.test(e))) avisos.push(ult.coletados === 0
     ? "🚧 A OLX bloqueou o robô na última execução (nenhum anúncio coletado). Promoções, preço novo e passagens continuam funcionando."
     : "🚧 A OLX bloqueou parte das buscas na última execução. Os dados podem estar incompletos.");
   if (!DADOS.execucoes.length) avisos.push("🚀 Ainda não houve nenhuma execução. Rode o workflow manualmente em Actions.");

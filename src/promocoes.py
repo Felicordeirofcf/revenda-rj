@@ -62,7 +62,7 @@ def tetos_de_compra(catalogo: Catalogo, revenda: dict[str, Referencia], regras: 
         teto = min(lucro_zero / (1 + margem), lucro_zero - lucro_min, orcamento)
         if teto > 0:
             tetos.append({"id": item.id, "nome": item.nome, "teto": round(teto), "mediana": ref.mediana, "n": ref.n,
-                          "fonte": ref.fonte})
+                          "fonte": ref.fonte, "busca": item.buscas[0], "categoria": item.categoria})
     return tetos
 
 

@@ -59,12 +59,17 @@ excluir_sempre:
 # Fontes
 fontes:
   olx:
-    ativa: true
+    # Desligada: a OLX bloqueia programas (HTTP 403), tanto do GitHub quanto do PC.
+    # Em vez disso, o painel mostra botões "Buscar na OLX até R$ X" para abrir no navegador.
+    ativa: false
     # {q} = termo de busca. sf=1 ordena por mais recentes.
     url_busca: "https://www.olx.com.br/estado-rj/rio-de-janeiro-e-regiao?q={q}&sf=1"
     paginas: 2
     intervalo_seg: 2.5
     max_detalhes_por_execucao: 40   # páginas de anúncio abertas para ler a descrição
+
+# Link das buscas prontas no painel (abre no SEU navegador). {q} = termo, {max} = preço máximo.
+busca_manual_olx: "https://www.olx.com.br/estado-rj/rio-de-janeiro-e-regiao?q={q}&pe={max}&sf=1"
 
 # IA (Claude) para triagem dos anúncios. Só analisa os que já passaram na conta de margem.
 ia:

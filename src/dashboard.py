@@ -146,7 +146,9 @@ def montar_dados(db: Database, regras: dict, catalogo: Catalogo, passagens: dict
         "gerado_em": quando.isoformat(),
         "regras": {k: regras.get(k) for k in (
             "orcamento_max", "margem_min_pct", "lucro_min_reais", "desconto_negociacao_pct",
-            "custo_fixo_reais", "taxa_venda_pct", "zonas_aceitas", "idade_max_dias", "referencia_min_amostras")},
+            "custo_fixo_reais", "taxa_venda_pct", "zonas_aceitas", "idade_max_dias", "referencia_min_amostras",
+            "busca_manual_olx")},
+        "olx_ativa": bool(((regras.get("fontes") or {}).get("olx") or {}).get("ativa")),
         "anuncios": anuncios,
         "vendidos": vendidos,
         "produtos": produtos,
